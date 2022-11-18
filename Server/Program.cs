@@ -1,5 +1,5 @@
-// using UberClient.HTTPClient;
-using UberClient.Services;
+// using LyftClient.HTTPClient;
+using LyftClient.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

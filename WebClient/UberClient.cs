@@ -3,17 +3,17 @@ using RideSaver.Server.Models;
 using System.Net.Http.Headers;
 using System.Net;
 using System.Text;
-using UberClient.Interface;
-using UberClient.HTTPClient;
+using LyftClient.Interface;
+using LyftClient.HTTPClient;
 
-namespace UberClient.Service
+namespace LyftClient.Service
 {
-    public class UberClient : IUberClient
+    public class LyftClient : ILyftClient
     {
         private string _baseUri = "";
         private TokenResponse? _token;
 
-        public UberClient()
+        public LyftClient()
         {
             InitializeProtocol();
         }

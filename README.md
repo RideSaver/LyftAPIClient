@@ -1,11 +1,11 @@
-# RideSaver Uber API client
+# RideSaver Lyft API client
 
 ## Setup
 Insert your Username, and [Personal Access Token](https://github.com/settings/tokens) into the [nuget.config](./nuget.config).
 
 ## Folder structure
-### UberAPIClient
+### LyftAPIClient
 This folder contains the OpenAPI specification, along with the openapi-generator configuration.
 
 ### Server
-This folder contains the implementation of the Internal API to Uber API adapter.
+This folder contains the implementation of the Internal API to Lyft API adapter.

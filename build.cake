@@ -10,7 +10,7 @@ var target = Argument("target", "Build");
 var configuration = Argument("configuration", "Release");
 var generator = Argument("generator", "csharp-netcore");
 var output_dir = Argument("output_dir", $"./build/{generator}");
-var packageName = Argument("package_name", "UberAPI.Client");
+var packageName = Argument("package_name", "LyftAPI.Client");
 
 //////////////////////////////////////////////////////////////////////
 // TASKS
@@ -27,9 +27,9 @@ Task("GenerateOpenAPI")
     .IsDependentOn("Clean")
     .Does(() =>
 {
-    OpenApiGenerator.Generate("UberAPIClient/openapi.yaml", generator, $"{output_dir}", new OpenApiGenerateSettings()
+    OpenApiGenerator.Generate("LyftAPIClient/openapi.yaml", generator, $"{output_dir}", new OpenApiGenerateSettings()
     {
-        ConfigurationFile = "UberAPIClient/openapi-codegen.json",
+        ConfigurationFile = "LyftAPIClient/openapi-codegen.json",
         PackageName = packageName
     });
 });
@@ -50,11 +50,11 @@ Task("Build")
     .IsDependentOn("Build:OpenAPI")
     .Does(() =>
 {
-    DotNetBuild($"Server/UberClient.csproj", new DotNetBuildSettings
+    DotNetBuild($"Server/LyftClient.csproj", new DotNetBuildSettings
     {
         Configuration = configuration,
         Framework = "net6.0",
-        OutputDirectory = $"./build/UberClient",
+        OutputDirectory = $"./build/LyftClient",
     });
 });
 

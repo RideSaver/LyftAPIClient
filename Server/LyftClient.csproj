@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <ProjectReference Include="../build/csharp-netcore/src/UberAPI.Client/UberAPI.Client.csproj" />
+    <ProjectReference Include="../build/csharp-netcore/src/LyftAPI.Client/LyftAPI.Client.csproj" />
   </ItemGroup>
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
