@@ -11,6 +11,7 @@ var configuration = Argument("configuration", "Release");
 var generator = Argument("generator", "csharp-netcore");
 var output_dir = Argument("output_dir", $"./build/{generator}");
 var packageName = Argument("package_name", "LyftAPI.Client");
+var runtime = Argument("runtime", "");
 
 //////////////////////////////////////////////////////////////////////
 // TASKS
