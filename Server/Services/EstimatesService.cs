@@ -44,11 +44,14 @@ namespace LyftClient.Services
             // Loop through all the services in the request
             foreach (var service in request.Services)
             {
+                string serviceName;
+                ServiceIDs.serviceIDs.TryGetValue(service, out serviceName);
+                if(serviceName == null) continue;
                 // Get estimate with parameters
                 var estimate = await apiClient.EstimateAsync(
                     request.StartPoint.Latitude,
                     request.StartPoint.Longitude,
-                    service, // TODO: Get proper product name from map
+                    serviceName,
                     request.EndPoint.Latitude,
                     request.EndPoint.Longitude
                 );
