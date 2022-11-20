@@ -1,6 +1,7 @@
 using Grpc.Core;
 using InternalAPI;
 using LyftAPI.Client.Model;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace LyftClient.Services
 {
@@ -11,20 +12,34 @@ namespace LyftClient.Services
         private readonly ILogger<EstimatesService> _logger;
         // Summary: our API client, so we only open up some ports, rather than swamping the system.
         private HttpClient apiClient;
+        // Summary: Our cache object
+        private readonly IDistributedCache _cache;
 
-        public EstimatesService(ILogger<EstimatesService> logger)
+        public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache)
         {
             _logger = logger;
+            _cache = cache;
             apiClient = new HttpClient(new HttpClientHandler {
                 MaxConnectionsPerServer = 2 // Make sure we only open up a maximum of 2 connections per server (i.e. Lyft.com)
             });
         }
+        
         [Authorize]
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
+            var encodedUserID = await _cache.GetAsync(context.GetHttpContext().Password);
+
+            if (encodedUserID == null)
+            {
+                return;
+            }
+            UserID = Encoding.UTF8.GetString(encodedUserID);
+
+            var AccessToken = UserID; // TODO: Get Access Token From DB
+
             // Create new API client (since it doesn't seem to allow dynamic loading of credentials)
             var apiClient = new LyftAPI.Client.Api.PublicApi(this.apiClient, new LyftAPI.Client.Client.Configuration {
-                AccessToken = "" // TODO: Get access token from distributed cache
+                AccessToken = AccessToken
             });
             // Loop through all the services in the request
             foreach (var service in request.Services)
