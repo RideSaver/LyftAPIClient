@@ -18,14 +18,15 @@ namespace LyftClient.Services
         // Summary: Our cache object
         private readonly IDistributedCache _cache;
 
+        // Summary: our Lyft API client
+        private readonly LyftAPI.Client.Api.PublicApi _apiClient;
+
         public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache, IHttpClientInstance httpClient)
         {
             _httpClient = httpClient;
             _logger = logger;
             _cache = cache;
-            apiClient = new HttpClient(new HttpClientHandler {
-                MaxConnectionsPerServer = 2 // Make sure we only open up a maximum of 2 connections per server (i.e. Lyft.com)
-            });
+            _apiClient = new LyftAPI.Client.Api.PublicApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
         }
         
         [Authorize]
@@ -42,9 +43,9 @@ namespace LyftClient.Services
             var AccessToken = UserID; // TODO: Get Access Token From DB
 
             // Create new API client (since it doesn't seem to allow dynamic loading of credentials)
-            var apiClient = new LyftAPI.Client.Api.PublicApi(this.apiClient, new LyftAPI.Client.Client.Configuration {
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration {
                 AccessToken = AccessToken
-            });
+            };
             // Loop through all the services in the request
             foreach (var service in request.Services)
             {
@@ -52,7 +53,7 @@ namespace LyftClient.Services
                 ServiceIDs.serviceIDs.TryGetValue(service, out serviceName);
                 if(serviceName == null) continue;
                 // Get estimate with parameters
-                var estimate = await apiClient.EstimateAsync(
+                var estimate = await _apiClient.EstimateAsync(
                     request.StartPoint.Latitude,
                     request.StartPoint.Longitude,
                     serviceName,
