@@ -1,4 +1,4 @@
-using Grpc.Core;
+﻿using Grpc.Core;
 using InternalAPI;
 using LyftAPI.Client.Model;
 using Microsoft.Extensions.Caching.Distributed;
@@ -62,10 +62,10 @@ namespace LyftClient.Services
                     EstimateId = "NEW ID GENERATOR",
                     PriceDetails = new CurrencyModel
                     {
-                        Price = (double)estimate[0].EstimatedCostCentsMax,
-                        Currency = estimate[0].Currency
+                        Price = (double)estimate.CostEstimates[0].EstimatedCostCentsMax,
+                        Currency = estimate.CostEstimates[0].Currency
                     },
-                    Distance = estimate[0].EstimatedDistanceMiles
+                    Distance = (int)estimate.CostEstimates[0].EstimatedDistanceMiles
                 });
             }
         }
