@@ -17,13 +17,15 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 
+app.UseRouting();
+
+app.UseAuthentication().AddJwtBearer();
 app.UseAuthorization();
 
-app.MapControllers();
-
-// HttpClientInstance.InitializeClient();
-
-app.MapGrpcService<EstimatesService>();
-app.MapGrpcService<RequestsService>();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapGrpcService<EstimatesService>();
+    endpoints.MapGrpcService<RequestsService>();
+});
 
 app.Run();

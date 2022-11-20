@@ -1,4 +1,4 @@
-﻿using Grpc.Core;
+using Grpc.Core;
 using InternalAPI;
 using LyftAPI.Client.Model;
 
@@ -19,6 +19,7 @@ namespace LyftClient.Services
                 MaxConnectionsPerServer = 2 // Make sure we only open up a maximum of 2 connections per server (i.e. Lyft.com)
             });
         }
+        [Authorize]
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
             // Create new API client (since it doesn't seem to allow dynamic loading of credentials)
