@@ -20,7 +20,7 @@ app.UseHttpsRedirection();
 
 app.UseRouting();
 
-app.UseAuthentication().AddJwtBearer();
+// app.UseAuthentication().AddJwtBearer();
 app.UseAuthorization();
 
 app.UseEndpoints(endpoints =>

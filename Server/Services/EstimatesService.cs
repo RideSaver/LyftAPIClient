@@ -1,8 +1,10 @@
-using Grpc.Core;
+﻿using Grpc.Core;
 using InternalAPI;
 using LyftAPI.Client.Model;
 using LyftClient.HTTPClient;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.AspNetCore.Authorization;
+using System.Text;
 
 namespace LyftClient.Services
 {
@@ -32,13 +34,15 @@ namespace LyftClient.Services
         [Authorize]
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
-            var encodedUserID = await _cache.GetAsync(context.GetHttpContext().Password);
+            var SessionToken = context.AuthContext.PeerIdentityPropertyName;
+            _logger.LogInformation("HTTP Context User: {User}", SessionToken);
+            var encodedUserID = await _cache.GetAsync(SessionToken); // TODO: Figure out if this is the correct token
 
             if (encodedUserID == null)
             {
                 return;
             }
-            UserID = Encoding.UTF8.GetString(encodedUserID);
+            var UserID = Encoding.UTF8.GetString(encodedUserID);
 
             var AccessToken = UserID; // TODO: Get Access Token From DB
 
