@@ -1,6 +1,7 @@
-﻿using Grpc.Core;
+using Grpc.Core;
 using InternalAPI;
 using LyftAPI.Client.Model;
+using LyftClient.HTTPClient;
 using Microsoft.Extensions.Caching.Distributed;
 
 namespace LyftClient.Services
@@ -11,12 +12,15 @@ namespace LyftClient.Services
         // Summary: our logging object, used for diagnostic logs.
         private readonly ILogger<EstimatesService> _logger;
         // Summary: our API client, so we only open up some ports, rather than swamping the system.
-        private HttpClient apiClient;
+        
+        private readonly IHttpClientInstance _httpClient;
+
         // Summary: Our cache object
         private readonly IDistributedCache _cache;
 
-        public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache)
+        public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache, IHttpClientInstance httpClient)
         {
+            _httpClient = httpClient;
             _logger = logger;
             _cache = cache;
             apiClient = new HttpClient(new HttpClientHandler {
