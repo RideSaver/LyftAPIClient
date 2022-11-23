@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: lyft-client
+    labels:
+        type: api-client
+        client: lyft
+spec:
+    selector:
+        matchLabels:
+            type: api-client
+            client: lyft
+    replicas: 1
+    template:
+        metadata:
+            labels:
+                type: api-client
+                client: lyft
+        spec:
+            containers:
+                - name: lyft
+                  image: ghcr.io/ridesaver/lyftclient:latest
+                  ports:
+                      - containerPort: 80
+                      - containerPort: 443
