@@ -82,5 +82,6 @@ jobs:
                       kubernetes/deployment.yaml
                       kubernetes/service.yaml
                       kubernetes/pod_autoscaler.yaml
+                      kubernetes/redis.yaml
                   images: |
                       ghcr.io/username/package:${{ github.sha }}
