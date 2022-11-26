@@ -32,7 +32,7 @@ namespace LyftClient.Services
         }
         
         [Authorize]
-        public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
+        public override async Task<EstimateModel> GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
@@ -40,7 +40,7 @@ namespace LyftClient.Services
 
             if (encodedUserID == null)
             {
-                return;
+                return new NotImplementedException();
             }
             var UserID = Encoding.UTF8.GetString(encodedUserID);
 
@@ -69,12 +69,17 @@ namespace LyftClient.Services
                 {
                     // TODO: populate most of this data with data from the estimate.
                     EstimateId = "NEW ID GENERATOR",
+                    CreatedTime = DateTime.Now,
                     PriceDetails = new CurrencyModel
                     {
                         Price = (double)estimate.CostEstimates[0].EstimatedCostCentsMax,
                         Currency = estimate.CostEstimates[0].Currency
                     },
-                    Distance = (int)estimate.CostEstimates[0].EstimatedDistanceMiles
+                    Distance = (int)estimate.CostEstimates[0].EstimatedDistanceMiles,
+                    WayPoints = new Location[0] {request.StartPoint, request.EndPoint},
+                    Seats = request.Seats,// TODO: Lookup table non shared services
+                    RequestUrl  = "",
+                    DisplayName = estimate.CostEstimates[0].DisplayName
                 });
             }
         }
