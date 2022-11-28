@@ -49,7 +49,7 @@ namespace LyftClient.Service
 
         public async Task<List<Estimate>> GetEstimates(Location startPoint, Location endPoint, List<Guid> services, int? seats)
         {
-            string url = "/cost"
+            string url = "/cost";
 
             await SetTokenAsync();
 
@@ -57,7 +57,7 @@ namespace LyftClient.Service
             HttpClientInstance.APIClientInstance.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue() { NoCache = true };
             HttpClientInstance.APIClientInstance.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token.Token);
 
-            using (HttpResponseMessage response = await HttpClientInstance.APIClientInstance!.GetAsync(_baseUri + url)
+            using (HttpResponseMessage response = await HttpClientInstance.APIClientInstance!.GetAsync(_baseUri + url))
             {
                 if(response.IsSuccessStatusCode)
                 {
@@ -65,7 +65,7 @@ namespace LyftClient.Service
                 }
                 else
                 {
-                    throw new Exception(response.ReasonPhrase)
+                    throw new Exception(response.ReasonPhrase);
                 }
             }
         }

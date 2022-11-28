@@ -5,6 +5,9 @@ using LyftClient.HTTPClient;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.AspNetCore.Authorization;
 using System.Text;
+using LyftApiClient.Server.Models;
+using LyftApiClient.Server.Extensions;
+using DataAccess;
 
 namespace LyftClient.Services
 {
@@ -32,7 +35,7 @@ namespace LyftClient.Services
         }
         
         [Authorize]
-        public override async Task<EstimateModel> GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
+        public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
@@ -40,7 +43,7 @@ namespace LyftClient.Services
 
             if (encodedUserID == null)
             {
-                return new NotImplementedException();
+                throw new NotImplementedException();
             }
             var UserID = Encoding.UTF8.GetString(encodedUserID);
 
@@ -64,23 +67,49 @@ namespace LyftClient.Services
                     request.EndPoint.Latitude,
                     request.EndPoint.Longitude
                 );
+
+                var EstimateId = DataAccess.Services.ServiceID.CreateServiceID(service);
+
                 // Write an InternalAPI model back
-                await responseStream.WriteAsync(new EstimateModel
+                var estimateModel = new EstimateModel()
                 {
                     // TODO: populate most of this data with data from the estimate.
                     EstimateId = "NEW ID GENERATOR",
-                    CreatedTime = DateTime.Now,
+                    CreatedTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now),
                     PriceDetails = new CurrencyModel
                     {
                         Price = (double)estimate.CostEstimates[0].EstimatedCostCentsMax,
                         Currency = estimate.CostEstimates[0].Currency
                     },
                     Distance = (int)estimate.CostEstimates[0].EstimatedDistanceMiles,
-                    WayPoints = new Location[0] {request.StartPoint, request.EndPoint},
                     Seats = request.Seats,// TODO: Lookup table non shared services
                     RequestUrl  = "",
                     DisplayName = estimate.CostEstimates[0].DisplayName
-                });
+                    
+                };
+
+                estimateModel.WayPoints.Add(request.StartPoint);
+                estimateModel.WayPoints.Add(request.EndPoint);
+
+                await responseStream.WriteAsync(estimateModel);
+
+                _cache.SetAsync<EstimateCache>(estimateModel.EstimateId, new EstimateCache
+                {
+
+                    Cost = new Cost()
+                    {
+                        Currency = estimateModel.PriceDetails.Currency,
+                        Amount = (int)estimateModel.PriceDetails.Price
+                    },
+                    GetEstimatesRequest = new GetEstimatesRequest() 
+                    { 
+                        StartPoint = estimateModel.WayPoints[0],
+                        EndPoint = estimateModel.WayPoints[1],
+                        Seats = estimateModel.Seats
+                    },
+                    ProductId = Guid.Parse(service)
+                    
+                },new DistributedCacheEntryOptions() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2) });
             }
         }
 
