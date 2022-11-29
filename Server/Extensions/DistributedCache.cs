@@ -11,6 +11,11 @@ namespace LyftApiClient.Server.Extensions
             await distributedCache.SetAsync(key, value.ToByteArray(), options, token);
         }
 
+        public async static Task SetAsync<T>(this IDistributedCache distributedCache, Guid key, T value, DistributedCacheEntryOptions options, CancellationToken token = default(CancellationToken))
+        {
+            await distributedCache.SetAsync(key, value.ToByteArray(), options, token);
+        }
+
         public async static Task<T> GetAsync<T>(this IDistributedCache distributedCache, string key, CancellationToken token = default(CancellationToken)) where T : class
         {
             var result = await distributedCache.GetAsync(key, token);

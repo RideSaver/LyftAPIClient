@@ -73,7 +73,6 @@ namespace LyftClient.Services
                 // Write an InternalAPI model back
                 var estimateModel = new EstimateModel()
                 {
-                    // TODO: populate most of this data with data from the estimate.
                     EstimateId = "NEW ID GENERATOR",
                     CreatedTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now),
                     PriceDetails = new CurrencyModel

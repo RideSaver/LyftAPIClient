@@ -25,12 +25,15 @@ namespace LyftClient.Services
         // Summary: our Lyft API client
         private readonly LyftAPI.Client.Api.UserApi _apiClient;
 
+        private readonly LyftAPI.Client.Api.UserApi _cancellationApiClient;
+
         public RequestsService(ILogger<RequestsService> logger, IDistributedCache cache, IHttpClientInstance httpClient)
         {
             _httpClient = httpClient;
             _logger = logger;
             _cache = cache;
             _apiClient = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
+            _cancellationApiClient = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
         }
 
         // Post Ride Request 
@@ -105,7 +108,7 @@ namespace LyftClient.Services
             string serviceName;
             ServiceIDs.serviceIDs.TryGetValue(request.RideId, out serviceName);
            
-            // Get estimate with parameters
+            // Get ride with parameters
             var ride = await _apiClient.RidesIdGetAsync(request.RideId);
 
             return (new RideModel
@@ -113,6 +116,8 @@ namespace LyftClient.Services
                 RideId = "New ID Generator",
 
                 EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(ride.Pickup.Time.DateTime),
+
+                //RiderOnBoard =
 
                 Price = new CurrencyModel
                 {
@@ -125,26 +130,84 @@ namespace LyftClient.Services
                     DisplayName = ride.Driver.FirstName,
                     LicensePlate = ride.Vehicle.LicensePlate,
                     CarPicture = ride.Vehicle.ImageUrl,
-                    CarDescription = ride.Vehicle.Model
-                    //DriverPronunciation = ""
+                    CarDescription = ride.Vehicle.Model,
+                    // DriverPronunciation = ride.Driver.FirstName
                 },
+
+                RideStage = StagefromStatus (ride.Status),
 
                 DriverLocation = new LocationModel
                 {
                     Latitude = ride.Location.Lat,
                     Longitude = ride.Location.Lng
-                    //Height = 
-                    //Planet = 
                 },
             });
         }
 
-        public override Task<CurrencyModel> DeleteRideRequest(DeleteRideRequestModel request, ServerCallContext context)
+        public override async Task<CurrencyModel> DeleteRideRequest(DeleteRideRequestModel request, ServerCallContext context)
         {
-            var deleteRide = new CurrencyModel();
-            // TBA: Invoke the web-client API to get the information from the Lyft-api, then send it to the microservice.
+            var SessionToken = context.AuthContext.PeerIdentityPropertyName;
+            _logger.LogInformation("HTTP Context User: {User}", SessionToken);
+            var encodedUserID = await _cache.GetAsync(SessionToken); // TODO: Figure out if this is the correct token
 
-            return Task.FromResult(deleteRide);
+            if (encodedUserID == null)
+            {
+                throw new NotImplementedException();
+            }
+            var UserID = Encoding.UTF8.GetString(encodedUserID);
+
+            var AccessToken = UserID; // TODO: Get Access Token From DB
+
+            var cacheEstimate = await _cache.GetAsync<EstimateCache> (request.RideId);
+
+            // Create new API client (since it doesn't seem to allow dynamic loading of credentials)
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+            {
+                AccessToken = AccessToken
+            };
+
+            await _apiClient.RidesIdCancelPostAsync(cacheEstimate.RequestId.ToString());
+
+            _cancellationApiClient.Configuration = new LyftAPI.Client.Client.Configuration
+            {
+                AccessToken = AccessToken
+            };
+
+            string serviceName;
+            ServiceIDs.serviceIDs.TryGetValue(request.RideId, out serviceName);
+
+            // TODO: Argument 1: cannot convert from 'System.Guid' to 'System.Threading.CancellationToken'
+            // var CancelCost = await _cancellationApiClient.ProfileGetWithHttpInfoAsync(cacheEstimate.ProductId);
+
+            return (new CurrencyModel
+            {
+                //TODO: Fill in with Canellation Cost and Token?
+
+                //Amount = 
+                //Currency =
+                //Token =
+            });
         }
+
+        private InternalAPI.Stage StagefromStatus (LyftAPI.Client.Model.RideStatusEnum? status) 
+        {
+            switch (status)
+            {
+                case LyftAPI.Client.Model.RideStatusEnum.Pending:
+                    return InternalAPI.Stage.Pending;
+
+                case LyftAPI.Client.Model.RideStatusEnum.Accepted:
+                    return InternalAPI.Stage.Accepted;
+
+                case LyftAPI.Client.Model.RideStatusEnum.Canceled:
+                    return InternalAPI.Stage.Cancelled;
+
+                case LyftAPI.Client.Model.RideStatusEnum.DroppedOff:
+                    return InternalAPI.Stage.Completed;
+
+                default:
+                    return InternalAPI.Stage.Unknown;
+            }
+        }     
     }
 }

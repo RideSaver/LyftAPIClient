@@ -9,5 +9,7 @@ namespace LyftApiClient.Server.Models
         public Cost Cost { get; set; }
         public GetEstimatesRequest GetEstimatesRequest { get; set; }
         public Guid ProductId { get; set; }
+        public CurrencyModel CancelationCost { get; set; }
+        public Guid RequestId { get; set; }
     }
 }
