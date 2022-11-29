@@ -38,4 +38,5 @@ vault write pki/roles/lyft-client \
     allowed_domains=lyft_client \
     allow_subdomains=true \
     max_ttl=72h
-fg
+
+vault monitor
