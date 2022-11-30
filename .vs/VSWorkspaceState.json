@@ -8,6 +8,6 @@
     "\\Server\\Services",
     "\\WebClient"
   ],
-  "SelectedNode": "\\Server\\Services\\EstimatesService.cs",
+  "SelectedNode": "\\Server\\Models\\EstimateCache.cs",
   "PreviewInSolutionExplorer": false
 }

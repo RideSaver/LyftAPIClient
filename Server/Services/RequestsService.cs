@@ -25,15 +25,12 @@ namespace LyftClient.Services
         // Summary: our Lyft API client
         private readonly LyftAPI.Client.Api.UserApi _apiClient;
 
-        private readonly LyftAPI.Client.Api.UserApi _cancellationApiClient;
-
         public RequestsService(ILogger<RequestsService> logger, IDistributedCache cache, IHttpClientInstance httpClient)
         {
             _httpClient = httpClient;
             _logger = logger;
             _cache = cache;
             _apiClient = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
-            _cancellationApiClient = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
         }
 
         // Post Ride Request 
@@ -131,7 +128,7 @@ namespace LyftClient.Services
                     LicensePlate = ride.Vehicle.LicensePlate,
                     CarPicture = ride.Vehicle.ImageUrl,
                     CarDescription = ride.Vehicle.Model,
-                    // DriverPronunciation = ride.Driver.FirstName
+                    //DriverPronunciation = ride.Driver.FirstName
                 },
 
                 RideStage = StagefromStatus (ride.Status),
@@ -158,7 +155,7 @@ namespace LyftClient.Services
 
             var AccessToken = UserID; // TODO: Get Access Token From DB
 
-            var cacheEstimate = await _cache.GetAsync<EstimateCache> (request.RideId);
+            var CacheEstimate = await _cache.GetAsync<CancellationCost>(request.RideId);
 
             // Create new API client (since it doesn't seem to allow dynamic loading of credentials)
             _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
@@ -166,47 +163,38 @@ namespace LyftClient.Services
                 AccessToken = AccessToken
             };
 
-            await _apiClient.RidesIdCancelPostAsync(cacheEstimate.RequestId.ToString());
-
-            _cancellationApiClient.Configuration = new LyftAPI.Client.Client.Configuration
-            {
-                AccessToken = AccessToken
-            };
-
             string serviceName;
             ServiceIDs.serviceIDs.TryGetValue(request.RideId, out serviceName);
-
-            // TODO: Argument 1: cannot convert from 'System.Guid' to 'System.Threading.CancellationToken'
-            // var CancelCost = await _cancellationApiClient.ProfileGetWithHttpInfoAsync(cacheEstimate.ProductId);
 
             return (new CurrencyModel
             {
                 //TODO: Fill in with Canellation Cost and Token?
-
-                //Amount = 
-                //Currency =
-                //Token =
+                Price = new CancellationCost
+                {
+                    Amount = CacheEstimate.Amount, // Error: Cannot implicitly convert type 'LyftAPI.Client.Model.CancellationCost' to 'double'
+                    Currency = CacheEstimate.Currency,
+                }
             });
         }
 
-        private InternalAPI.Stage StagefromStatus (LyftAPI.Client.Model.RideStatusEnum? status) 
+        private Stage StagefromStatus (LyftAPI.Client.Model.RideStatusEnum? status) 
         {
             switch (status)
             {
                 case LyftAPI.Client.Model.RideStatusEnum.Pending:
-                    return InternalAPI.Stage.Pending;
+                    return Stage.Pending;
 
                 case LyftAPI.Client.Model.RideStatusEnum.Accepted:
-                    return InternalAPI.Stage.Accepted;
+                    return Stage.Accepted;
 
                 case LyftAPI.Client.Model.RideStatusEnum.Canceled:
-                    return InternalAPI.Stage.Cancelled;
+                    return Stage.Cancelled;
 
                 case LyftAPI.Client.Model.RideStatusEnum.DroppedOff:
-                    return InternalAPI.Stage.Completed;
+                    return Stage.Completed;
 
                 default:
-                    return InternalAPI.Stage.Unknown;
+                    return Stage.Unknown;
             }
         }     
     }
