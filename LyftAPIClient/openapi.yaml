@@ -238,7 +238,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Ride"
+              $ref: "#/components/schemas/CreateRideRequest"
         description: Ride request information
       tags:
         - User
@@ -249,7 +249,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CreateRideRequest"
+                $ref: "#/components/schemas/Ride"
         "400":
           description: >
             The 'error' field can be one of the following:

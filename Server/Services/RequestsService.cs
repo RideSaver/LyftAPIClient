@@ -25,15 +25,23 @@ namespace LyftClient.Services
         // Summary: our Lyft API client
         private readonly LyftAPI.Client.Api.UserApi _apiClient;
 
+        private readonly LyftAPI.Client.Api.UserApi CacheEstimate;
+
         public RequestsService(ILogger<RequestsService> logger, IDistributedCache cache, IHttpClientInstance httpClient)
         {
             _httpClient = httpClient;
             _logger = logger;
             _cache = cache;
             _apiClient = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
+            CacheEstimate = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
         }
 
-        // Post Ride Request 
+        /**
+         * @brief Creates new Lyft Ride Request
+         * @startuml
+         * Alice -> Bob : Hello
+         * @enduml
+         */
         public override async Task<RideModel> PostRideRequest(PostRideRequestModel request, ServerCallContext context)
         {
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
@@ -55,10 +63,8 @@ namespace LyftClient.Services
 
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.EstimateId);
 
-            LyftAPI.Client.Model.Ride _request = new LyftAPI.Client.Model.Ride()
+            LyftAPI.Client.Model.CreateRideRequest _request = new LyftAPI.Client.Model.CreateRideRequest()
             {
-                RideId = request.EstimateId,
-                
                 Origin = new Location()
                 {
                     Lat = CacheEstimate.GetEstimatesRequest.StartPoint.Latitude,
@@ -74,14 +80,51 @@ namespace LyftClient.Services
 
             var ride = await _apiClient.RidesPostAsync(_request);
 
+            var RideDetails = await _apiClient.RidesIdGetAsync(ride.RideId); 
+
+            CacheEstimate.CancelationCost = new CurrencyModel()
+            {
+                Price = RideDetails.CancellationPrice.Amount,
+                Currency = RideDetails.CancellationPrice.Currency
+            };
+
+            CacheEstimate.CancelationToken = new Guid (RideDetails.CancellationPrice.Token);
+
             var rideModel = new RideModel()
             {
-                RideId = _request.RideId
+                RideId = request.EstimateId,
+
+                EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(RideDetails.Pickup.Time.DateTime),
+
+                RiderOnBoard = false,
+
+                Price = new CurrencyModel
+                {
+                    Price = (double)RideDetails.Price.Amount / 100,
+                    Currency = RideDetails.Price.Currency,
+                },
+
+                Driver = new DriverModel
+                {
+                    DisplayName = RideDetails.Driver.FirstName,
+                    LicensePlate = RideDetails.Vehicle.LicensePlate,
+                    CarPicture = RideDetails.Vehicle.ImageUrl,
+                    CarDescription = RideDetails.Vehicle.Model,
+                    DriverPronounciation = RideDetails.Driver.FirstName,
+                },
+
+                RideStage = StagefromStatus (RideDetails.Status),
+
+                DriverLocation = new LocationModel
+                {
+                    Latitude = RideDetails.Location.Lat,
+                    Longitude = RideDetails.Location.Lng,
+                },
             };
 
             return rideModel;
         }
-
+        
         public override async Task<RideModel> GetRideRequest(GetRideRequestModel request, ServerCallContext context)
         {
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
@@ -110,16 +153,16 @@ namespace LyftClient.Services
 
             return (new RideModel
             {
-                RideId = "New ID Generator",
+                RideId = request.RideId,
 
                 EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(ride.Pickup.Time.DateTime),
 
-                //RiderOnBoard =
+                RiderOnBoard = ride.Status == LyftAPI.Client.Model.RideStatusEnum.PickedUp,
 
                 Price = new CurrencyModel
                 {
                     Price = (double)ride.Price.Amount / 100,
-                    Currency = ride.Price.Currency
+                    Currency = ride.Price.Currency,
                 },
 
                 Driver = new DriverModel
@@ -128,7 +171,7 @@ namespace LyftClient.Services
                     LicensePlate = ride.Vehicle.LicensePlate,
                     CarPicture = ride.Vehicle.ImageUrl,
                     CarDescription = ride.Vehicle.Model,
-                    //DriverPronunciation = ride.Driver.FirstName
+                    DriverPronounciation = ride.Driver.FirstName
                 },
 
                 RideStage = StagefromStatus (ride.Status),
@@ -136,7 +179,7 @@ namespace LyftClient.Services
                 DriverLocation = new LocationModel
                 {
                     Latitude = ride.Location.Lat,
-                    Longitude = ride.Location.Lng
+                    Longitude = ride.Location.Lng,
                 },
             });
         }
@@ -155,9 +198,8 @@ namespace LyftClient.Services
 
             var AccessToken = UserID; // TODO: Get Access Token From DB
 
-            var CacheEstimate = await _cache.GetAsync<CancellationCost>(request.RideId);
+            var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
 
-            // Create new API client (since it doesn't seem to allow dynamic loading of credentials)
             _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
             {
                 AccessToken = AccessToken
@@ -166,15 +208,7 @@ namespace LyftClient.Services
             string serviceName;
             ServiceIDs.serviceIDs.TryGetValue(request.RideId, out serviceName);
 
-            return (new CurrencyModel
-            {
-                //TODO: Fill in with Canellation Cost and Token?
-                Price = new CancellationCost
-                {
-                    Amount = CacheEstimate.Amount, // Error: Cannot implicitly convert type 'LyftAPI.Client.Model.CancellationCost' to 'double'
-                    Currency = CacheEstimate.Currency,
-                }
-            });
+            return CacheEstimate.CancelationCost;
         }
 
         private Stage StagefromStatus (LyftAPI.Client.Model.RideStatusEnum? status) 
@@ -183,7 +217,9 @@ namespace LyftClient.Services
             {
                 case LyftAPI.Client.Model.RideStatusEnum.Pending:
                     return Stage.Pending;
-
+                
+                case LyftAPI.Client.Model.RideStatusEnum.Arrived:
+                case LyftAPI.Client.Model.RideStatusEnum.PickedUp:
                 case LyftAPI.Client.Model.RideStatusEnum.Accepted:
                     return Stage.Accepted;
 

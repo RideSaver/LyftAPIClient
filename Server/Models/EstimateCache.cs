@@ -11,5 +11,6 @@ namespace LyftApiClient.Server.Models
         public Guid ProductId { get; set; }
         public CurrencyModel CancelationCost { get; set; }
         public Guid RequestId { get; set; }
+        public Guid CancelationToken { get; set; }
     }
 }
