@@ -1,6 +1,7 @@
 ﻿using Grpc.Core;
 using InternalAPI;
 using LyftAPI.Client.Model;
+using LyftAPI.Client.Repository;
 using LyftClient.HTTPClient;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +10,9 @@ using LyftApiClient.Server.Models;
 using LyftApiClient.Server.Extensions;
 using DataAccess;
 
+/**
+* Estimates Service class, Lyft client which sends estimates to a Estimates Service thorugh TCP port protocol, then returned information is converted in gRPC
+*/
 namespace LyftClient.Services
 {
     // Summary: Handles all requests for estimates
@@ -26,33 +30,28 @@ namespace LyftClient.Services
         // Summary: our Lyft API client
         private readonly LyftAPI.Client.Api.PublicApi _apiClient;
 
-        public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache, IHttpClientInstance httpClient)
+        private readonly IAccessTokenController _accessController;
+
+        public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache, IHttpClientInstance httpClient, IAccessTokenController accessController)
         {
             _httpClient = httpClient;
             _logger = logger;
             _cache = cache;
             _apiClient = new LyftAPI.Client.Api.PublicApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
+            _accessController = accessController;
         }
         
         [Authorize]
+        /**
+        * @brief Gets price estiamte of Lyft ride 
+        * @startuml
+        * 
+        * @enduml
+        */
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
-            var encodedUserID = await _cache.GetAsync(SessionToken); // TODO: Figure out if this is the correct token
-
-            if (encodedUserID == null)
-            {
-                throw new NotImplementedException();
-            }
-            var UserID = Encoding.UTF8.GetString(encodedUserID);
-
-            var AccessToken = UserID; // TODO: Get Access Token From DB
-
-            // Create new API client (since it doesn't seem to allow dynamic loading of credentials)
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration {
-                AccessToken = AccessToken
-            };
             // Loop through all the services in the request
             foreach (var service in request.Services)
             {
@@ -60,6 +59,10 @@ namespace LyftClient.Services
                 ServiceIDs.serviceIDs.TryGetValue(service, out serviceName);
                 if(serviceName == null) continue;
                 // Get estimate with parameters
+                _apiClient.Configuration = new LyftAPI.Client.Client.Configuration {
+                    AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, service)
+                };
+                
                 var estimate = await _apiClient.EstimateAsync(
                     request.StartPoint.Latitude,
                     request.StartPoint.Longitude,
@@ -111,7 +114,13 @@ namespace LyftClient.Services
                 },new DistributedCacheEntryOptions() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2) });
             }
         }
-
+        
+        /**
+        * @brief Refreshes price estimate of Lyft ride
+        * @startuml
+        * 
+        * @enduml
+        */
         public override Task<EstimateModel> GetEstimateRefresh(GetEstimateRefreshRequest request, ServerCallContext context)
         {
             var estimateRefresh = new EstimateModel();

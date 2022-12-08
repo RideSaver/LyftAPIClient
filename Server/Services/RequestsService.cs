@@ -1,6 +1,7 @@
 ﻿using Grpc.Core;
 using InternalAPI;
 using LyftAPI.Client.Model;
+using LyftAPI.Client.Repository;
 using LyftClient.HTTPClient;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +11,10 @@ using Microsoft.Bot.Schema;
 using LyftApiClient.Server.Models;
 using LyftApiClient.Server.Extensions;
 
+/** Requests Service class
+/**
+* Lyft client which sends requests to a Requets Service thorugh TCP port protocol, then returned information is converted in gRPC
+*/
 namespace LyftClient.Services
 {
     public class RequestsService : Requests.RequestsBase // TBA
@@ -18,49 +23,47 @@ namespace LyftClient.Services
         private readonly ILogger<RequestsService> _logger;
         // Summary: our API client, so we only open up some ports, rather than swamping the system.
         private readonly IHttpClientInstance _httpClient;
-
         // Summary: Our cache object
         private readonly IDistributedCache _cache;
-
         // Summary: our Lyft API client
         private readonly LyftAPI.Client.Api.UserApi _apiClient;
 
         private readonly LyftAPI.Client.Api.UserApi CacheEstimate;
 
-        public RequestsService(ILogger<RequestsService> logger, IDistributedCache cache, IHttpClientInstance httpClient)
+        private readonly IAccessTokenController _accessController;
+
+        public RequestsService(ILogger<RequestsService> logger, IDistributedCache cache, IHttpClientInstance httpClient, IAccessTokenController accessController)
         {
             _httpClient = httpClient;
             _logger = logger;
             _cache = cache;
             _apiClient = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
             CacheEstimate = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
+            _accessController = accessController;
         }
 
         /**
-         * @brief Creates new Lyft Ride Request
+         * @brief Creates new Lyft ride request
          * @startuml
-         * Alice -> Bob : Hello
+         * State Diagram
+         * < = Input
+         * : = state
+         * then = denotes branch
+         * if =  if statement
+         * endif = end if statement
          * @enduml
+         * @startuml
+         * Sequence Diagram
+         * participant 
+         * example -> example1
+         * ++: = activation
+         * return 
+         * alt = alternative scenario
          */
         public override async Task<RideModel> PostRideRequest(PostRideRequestModel request, ServerCallContext context)
         {
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
-            var encodedUserID = await _cache.GetAsync(SessionToken);
-
-            if (encodedUserID == null)
-            {
-               throw new NotImplementedException();
-            }
-            var UserID = Encoding.UTF8.GetString(encodedUserID);
-
-            var AccessToken = UserID;
-
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
-            {
-                AccessToken = AccessToken
-            };
-
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.EstimateId);
 
             LyftAPI.Client.Model.CreateRideRequest _request = new LyftAPI.Client.Model.CreateRideRequest()
@@ -78,7 +81,16 @@ namespace LyftClient.Services
                 },
             };
 
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+            {
+                AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString())
+            };
+
             var ride = await _apiClient.RidesPostAsync(_request);
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+            {
+                AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString())
+            };
 
             var RideDetails = await _apiClient.RidesIdGetAsync(ride.RideId); 
 
@@ -125,32 +137,23 @@ namespace LyftClient.Services
             return rideModel;
         }
         
+        /**
+        * @brief Gets new Lyft ride request 
+        * @startuml
+        * 
+        * @enduml
+        */
         public override async Task<RideModel> GetRideRequest(GetRideRequestModel request, ServerCallContext context)
         {
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
-            var encodedUserID = await _cache.GetAsync(SessionToken); // TODO: Figure out if this is the correct token
-
-            if (encodedUserID == null)
-            {
-                throw new NotImplementedException();
-            }
-            var UserID = Encoding.UTF8.GetString(encodedUserID);
-
-            var AccessToken = UserID; // TODO: Get Access Token From DB
-
-            // Create new API client (since it doesn't seem to allow dynamic loading of credentials)
+            var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
             _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
             {
-                AccessToken = AccessToken
+                AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString()),
             };
-
-            string serviceName;
-            ServiceIDs.serviceIDs.TryGetValue(request.RideId, out serviceName);
-           
-            // Get ride with parameters
-            var ride = await _apiClient.RidesIdGetAsync(request.RideId);
-
+            var ride = await _apiClient.RidesIdGetAsync(request.RideId); 
+            
             return (new RideModel
             {
                 RideId = request.RideId,
@@ -184,33 +187,33 @@ namespace LyftClient.Services
             });
         }
 
+        /**
+        * @brief Deletes Lyft ride request 
+        * @startuml
+        * 
+        * @enduml
+        */
         public override async Task<CurrencyModel> DeleteRideRequest(DeleteRideRequestModel request, ServerCallContext context)
         {
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
-            var encodedUserID = await _cache.GetAsync(SessionToken); // TODO: Figure out if this is the correct token
-
-            if (encodedUserID == null)
-            {
-                throw new NotImplementedException();
-            }
-            var UserID = Encoding.UTF8.GetString(encodedUserID);
-
-            var AccessToken = UserID; // TODO: Get Access Token From DB
-
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
-
             _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
             {
-                AccessToken = AccessToken
+                AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString())
             };
+            await _apiClient.RidesIdCancelPostAsync(CacheEstimate.CancelationToken.ToString());
 
-            string serviceName;
-            ServiceIDs.serviceIDs.TryGetValue(request.RideId, out serviceName);
 
             return CacheEstimate.CancelationCost;
         }
 
+        /**
+        * @brief Current stage of Lyft ride
+        * @startuml
+        * 
+        * @enduml
+        */
         private Stage StagefromStatus (LyftAPI.Client.Model.RideStatusEnum? status) 
         {
             switch (status)
