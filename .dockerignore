@@ -1,6 +1,6 @@
+tools
+obj
 build
 bin
-obj
-tools
 nuget.config
-.DS_Store
+Dockerfile

@@ -5,14 +5,21 @@ using Cake.CodeGen.OpenApi;
 using Cake.Common.Tools.NuGet.NuGetAliases;
 using System.Text.RegularExpressions;
 
+var currentRuntime = System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier ;
+var currentArchitecture = currentRuntime.Substring(currentRuntime.LastIndexOf("-") + 1);
+currentRuntime = currentRuntime.Substring(0, currentRuntime.LastIndexOf("-"));
+
 
 var target = Argument("target", "Build");
 var configuration = Argument("configuration", "Release");
 var generator = Argument("generator", "csharp-netcore");
 var output_dir = Argument("output_dir", $"./build/{generator}");
 var packageName = Argument("package_name", "LyftAPI.Client");
-var runtime = Argument("runtime", "");
+var architecture = Argument("architecture", currentArchitecture);
+var runtime = Argument("runtime", currentRuntime);
 
+// Summary: The runtime identifier to compile for
+var Runtime = $"{runtime}-{architecture}";
 //////////////////////////////////////////////////////////////////////
 // TASKS
 //////////////////////////////////////////////////////////////////////
@@ -24,7 +31,7 @@ Task("Clean")
     CleanDirectory($"{output_dir}");
 });
 
-Task("GenerateOpenAPI")
+Task("Generate:OpenAPI")
     .IsDependentOn("Clean")
     .Does(() =>
 {
@@ -35,20 +42,8 @@ Task("GenerateOpenAPI")
     });
 });
 
-Task("Build:OpenAPI")
-    .IsDependentOn("GenerateOpenAPI")
-    .Does(() =>
-{
-    DotNetBuild($"{output_dir}/{packageName}.sln", new DotNetBuildSettings
-    {
-        Configuration = configuration,
-        Framework = "net6.0",
-        OutputDirectory = $"./build/{generator}/src/{packageName}/bin/{configuration}/lib/net6.0",
-    });
-});
-
 Task("Build")
-    .IsDependentOn("Build:OpenAPI")
+    .IsDependentOn("Generate:OpenAPI")
     .Does(() =>
 {
     DotNetBuild($"Server/LyftClient.csproj", new DotNetBuildSettings
@@ -56,6 +51,22 @@ Task("Build")
         Configuration = configuration,
         Framework = "net6.0",
         OutputDirectory = $"./build/LyftClient",
+        Runtime = Runtime,
+    });
+});
+
+Task("Publish")
+    .IsDependentOn("Build")
+    .Does(()=>
+{
+    DotNetPublish("Server/LyftClient.csproj", new DotNetPublishSettings {
+        Framework = "net6.0",
+        Configuration = "Release",
+        OutputDirectory = "./publish/",
+        SelfContained = true,
+        PublishTrimmed = true,
+        Runtime = Runtime,
+        // NoBuild = true
     });
 });
 
