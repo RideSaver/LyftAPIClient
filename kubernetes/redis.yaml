@@ -5,7 +5,7 @@ metadata:
     namespace: client
 spec:
     serviceName: lyft-redis
-    replicas: 3
+    replicas: 1
     selector:
         matchLabels:
             app: lyft-redis
