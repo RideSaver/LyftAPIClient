@@ -1340,6 +1340,36 @@ components:
           first_name: Jane
           image_url: https://public-api.lyft.com/static/images/user.png
           rating: 4.9
+    
+    CreateRideRequest:
+      description: Details to create a ride request
+      properties:
+        cost_token:
+            type: string
+            description: A token that confirms the user has accepted the current Prime Time and/or fixed price charges.
+        ride_type:
+          $ref: "#/components/schemas/RideTypeEnum"
+        origin:
+          $ref: "#/components/schemas/Location"
+        destination:
+          $ref: "#/components/schemas/Location"
+        passenger:
+          $ref: "#/components/schemas/PassengerDetail"
+      example:
+        ride_type: lyft
+        cost_token: jfsdaklfjs
+        origin:
+          lat: 36.9442175
+          lng: -123.8679133
+          address: 123 Main St, Anytown, CA
+        destination:
+          lat: 36.9442175
+          lng: -123.8679133
+          address: 123 Main St, Anytown, CA
+        passenger:
+          first_name: Jane
+          image_url: https://public-api.lyft.com/static/images/user.png
+          rating: 4.9
     Profile:
       description: Represents the general information about a user.
       type: object
