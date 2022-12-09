@@ -1,8 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
-
-  <ItemGroup>
-    <ProjectReference Include="../build/csharp-netcore/src/LyftAPI.Client/LyftAPI.Client.csproj" />
-  </ItemGroup>
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -15,10 +11,21 @@
     <PackageReference Include="Grpc.Core" Version="2.46.5" />
     <PackageReference Include="Microsoft.AspNet.WebApi" Version="5.2.9" />
     <PackageReference Include="Microsoft.Bot.Schema" Version="4.18.1" />
+<<<<<<< Updated upstream
     <PackageReference Include="RideSaver.InternalAPI" Version="0.0.1" />
+=======
+    <PackageReference Include="RideSaver.InternalAPI" Version="0.0.8" />
+	  <PackageReference Include="RideSaver.DataAccess" Version="0.0.7" />
+>>>>>>> Stashed changes
     <PackageReference Include="Microsoft.Extensions.Caching.Redis" Version="2.2.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="LyftAPI.Client">
+      <HintPath>..\build\csharp-netcore\src\LyftAPI.Client\obj\Release\net6.0\LyftAPI.Client.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <PropertyGroup>
