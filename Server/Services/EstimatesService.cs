@@ -10,8 +10,14 @@ using LyftApiClient.Server.Models;
 using LyftApiClient.Server.Extensions;
 using DataAccess;
 
+//**Estimates Service class
 /**
-* Estimates Service class, Lyft client which sends estimates to a Estimates Service thorugh TCP port protocol, then returned information is converted in gRPC
+* Lyft client class which sends requests from GetEstimate, and GetEstimate Refresh.
+* These two methods work similarly. It first gets a access token in order to make calls to the Lyft
+* API/Server. After token is recieved gRPC will make a call to the Lyft Client to the get the RideId.
+* With that Id the client can recieve data from the protocol buffer. Then the client will invoke the
+* necessary methods. Then the Lyft API/Server will send back data as parameters that can then be sent
+* to our services.
 */
 namespace LyftClient.Services
 {
@@ -21,7 +27,7 @@ namespace LyftClient.Services
         // Summary: our logging object, used for diagnostic logs.
         private readonly ILogger<EstimatesService> _logger;
         // Summary: our API client, so we only open up some ports, rather than swamping the system.
-        
+
         private readonly IHttpClientInstance _httpClient;
 
         // Summary: Our cache object
@@ -40,12 +46,34 @@ namespace LyftClient.Services
             _apiClient = new LyftAPI.Client.Api.PublicApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
             _accessController = accessController;
         }
-        
+
         [Authorize]
         /**
-        * @brief Gets price estiamte of Lyft ride 
         * @startuml
-        * 
+        * state "Get Access Token" as AccTok
+        * state "gRPC calls Lyft Client" as gRPC
+        * gRPC : Estimate Values
+        * state "Lyft Client receives protocol buffer data" as ProtoData
+        * state "Add authentication token to Lyft Client" as  AuthToken
+        * state "LyftAPI Third Party Call" as LyftCall
+        * LyftCall: Request object as Parameter
+        * state "Lyft Server sends back data of requested estimates" as DataSend
+        * state "Lyft Client receives response object" as DataReci
+        * DataReci: Loops through all services then adds to EstimatedId
+        * state "EstimateId sent to cache" as IDCahce
+        * state "Send Estimate object to Service" as ServiObj
+
+        * [*] --> AccTok
+        * AccTok --> gRPC
+        * gRPC --> ProtoData
+        * ProtoData --> AuthToken : Deserialization to the standard model
+        * AuthToken --> LyftCall : Serialization to Lyft Model
+        * LyftCall --> DataSend
+        * DataSend --> DataReci
+        * DataReci --> IDCahce : Serialization to protocol buffer data
+        * IDCahce --> AccTok
+        * IDCahce --> ServiObj
+        * ServiObj  --> [*]
         * @enduml
         */
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
@@ -62,7 +90,7 @@ namespace LyftClient.Services
                 _apiClient.Configuration = new LyftAPI.Client.Client.Configuration {
                     AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, service)
                 };
-                
+
                 var estimate = await _apiClient.EstimateAsync(
                     request.StartPoint.Latitude,
                     request.StartPoint.Longitude,
@@ -87,7 +115,7 @@ namespace LyftClient.Services
                     Seats = request.Seats,// TODO: Lookup table non shared services
                     RequestUrl  = "",
                     DisplayName = estimate.CostEstimates[0].DisplayName
-                    
+
                 };
 
                 estimateModel.WayPoints.Add(request.StartPoint);
@@ -103,22 +131,26 @@ namespace LyftClient.Services
                         Currency = estimateModel.PriceDetails.Currency,
                         Amount = (int)estimateModel.PriceDetails.Price
                     },
-                    GetEstimatesRequest = new GetEstimatesRequest() 
-                    { 
+                    GetEstimatesRequest = new GetEstimatesRequest()
+                    {
                         StartPoint = estimateModel.WayPoints[0],
                         EndPoint = estimateModel.WayPoints[1],
                         Seats = estimateModel.Seats
                     },
                     ProductId = Guid.Parse(service)
-                    
+
                 },new DistributedCacheEntryOptions() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2) });
             }
         }
-        
+
         /**
-        * @brief Refreshes price estimate of Lyft ride
         * @startuml
-        * 
+        * tate "New Estimate Model" as NewModel
+        * state "Return Data From EstimateRefresh" as Data
+        *
+        * [*] --> NewModel
+        * NewModel --> Data
+        * Data--> [*]
         * @enduml
         */
         public override Task<EstimateModel> GetEstimateRefresh(GetEstimateRefreshRequest request, ServerCallContext context)

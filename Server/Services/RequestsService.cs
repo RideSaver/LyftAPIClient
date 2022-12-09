@@ -13,7 +13,12 @@ using LyftApiClient.Server.Extensions;
 
 /** Requests Service class
 /**
-* Lyft client which sends requests to a Requets Service thorugh TCP port protocol, then returned information is converted in gRPC
+* Lyft client class which sends requests from PostRideRequest, GetRideRequest, and DeleteRideRequest.
+* These three methods work similarly. It first gets a access token in order to make calls to the Lyft
+* API/Server. After token is recieved gRPC will make a call to the Lyft Client to the get the RideId.
+* With that Id the client can recieve data from the protocol buffer. Then the client will invoke the
+* necessary methods. Then the Lyft API/Server will send back data as parameters that can then be sent
+* to our services.
 */
 namespace LyftClient.Services
 {
@@ -43,22 +48,34 @@ namespace LyftClient.Services
         }
 
         /**
-         * @brief Creates new Lyft ride request
-         * @startuml
-         * State Diagram
-         * < = Input
-         * : = state
-         * then = denotes branch
-         * if =  if statement
-         * endif = end if statement
-         * @enduml
-         * @startuml
-         * Sequence Diagram
-         * participant 
-         * example -> example1
-         * ++: = activation
-         * return 
-         * alt = alternative scenario
+        * @brief Creates new Lyft ride request
+        * @startuml
+        * state "Access Token Get" as GetToken
+        * state "gRPC calls Lyft Client" as gRPC
+        * gRPC: RideId
+        * state "Get RideId from cache" as CacheId
+        * state "Lyft Client receives data from protocol buffer" as ProtoData
+        * state "Add Authentication Token to Lyft Client" as AuthToken
+        * state "Client makes GetRideRequest call to Lyft API/Server" as RideReq
+        * RideReq : Requested objects are parameters
+        * state "Lyft API/Server sends back requested data" as LyftSend
+        * state "Lyft Client receives Data/Response Objects" as ClientData
+        * ClientData : Iterates through instances and adds them to RideId
+        * state "Update RideId to Cache" as RideCache
+        * state "Lyft Client sends data to services" as ServiceData
+        *
+        * [*] --> GetToken
+        * GetToken --> gRPC
+        * gRPC --> CacheId
+        * CacheId --> ProtoData
+        * ProtoData --> AuthToken : Deserialization to standard model
+        * AuthToken --> RideReq : Serialization to Lyft Model
+        * RideReq --> LyftSend
+        * LyftSend --> ClientData
+        * ClientData --> RideCache: Serialization to protocol buffer
+        * RideCache --> ServiceData
+        * ServiceData --> [*]
+        * @enduml
          */
         public override async Task<RideModel> PostRideRequest(PostRideRequestModel request, ServerCallContext context)
         {
@@ -81,18 +98,18 @@ namespace LyftClient.Services
                 },
             };
 
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
             {
                 AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString())
             };
 
             var ride = await _apiClient.RidesPostAsync(_request);
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
             {
                 AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString())
             };
 
-            var RideDetails = await _apiClient.RidesIdGetAsync(ride.RideId); 
+            var RideDetails = await _apiClient.RidesIdGetAsync(ride.RideId);
 
             CacheEstimate.CancelationCost = new CurrencyModel()
             {
@@ -136,11 +153,33 @@ namespace LyftClient.Services
 
             return rideModel;
         }
-        
+
         /**
-        * @brief Gets new Lyft ride request 
+        * @brief Gets new Lyft ride request
         * @startuml
-        * 
+        * state "Access Token Get" as GetToken
+        * state "gRPC calls Lyft Client" as gRPC
+        * gRPC: RideId
+        * state "Get RideId from cache" as CacheId
+        * state "Lyft Client receives data from protocol buffer" as ProtoData
+        * state "Add Authentication Token to Lyft Client" as AuthToken
+        * state "Client makes GetRideRequest call to Lyft API/Server" as RideReq
+        * RideReq : Requested objects are parameters
+        * state "Lyft API/Server sends back requested data" as LyftSend
+        * state "Lyft Client receives Data/Response Objects" as ClientData
+        * ClientData : Iterates through instances and adds them to RideId
+        * state "Lyft Client sends data to services" as ServiceData
+        *
+        * [*] --> GetToken
+        * GetToken --> gRPC
+        * gRPC --> CacheId
+        * CacheId --> ProtoData
+        * ProtoData --> AuthToken : Deserialization to standard model
+        * AuthToken --> RideReq : Serialization to Lyft Model
+        * RideReq --> LyftSend
+        * LyftSend --> ClientData
+        * ClientData --> ServiceData : Serialization to protocol buffer
+        * ServiceData --> [*]
         * @enduml
         */
         public override async Task<RideModel> GetRideRequest(GetRideRequestModel request, ServerCallContext context)
@@ -148,12 +187,14 @@ namespace LyftClient.Services
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
             {
                 AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString()),
             };
-            var ride = await _apiClient.RidesIdGetAsync(request.RideId); 
-            
+
+            var ride = await _apiClient.RidesIdGetAsync(request.RideId);
+
             return (new RideModel
             {
                 RideId = request.RideId,
@@ -188,9 +229,26 @@ namespace LyftClient.Services
         }
 
         /**
-        * @brief Deletes Lyft ride request 
+        * @brief Deletes Lyft ride request
         * @startuml
-        * 
+        * state "Access Token Get" as GetToken
+        * state "gRPC calls Lyft Client" as gRPC
+        * gRPC: RideId
+        * state "Get RideId from cache" as CacheId
+        * state "Lyft Client receives data from protocol buffer" as ProtoData
+        * state "Add Authentication Token to Lyft Client" as AuthToken
+        * state "Client makes DeleteRideRequest call to Lyft API/Server" as RideReq
+        * RideReq : Requested objects are parameters
+        * state "Lyft API/Server sends back cancelation token and cancellation price" as CancelToken
+        *
+        * [*] --> GetToken
+        * GetToken --> gRPC
+        * gRPC --> CacheId
+        * CacheId --> ProtoData
+        * ProtoData --> AuthToken : Deserialization to standard model
+        * AuthToken --> RideReq : Serialization to Lyft Model
+        * RideReq --> CancelToken
+        * CancelToken --> [*]
         * @enduml
         */
         public override async Task<CurrencyModel> DeleteRideRequest(DeleteRideRequestModel request, ServerCallContext context)
@@ -198,29 +256,24 @@ namespace LyftClient.Services
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
             {
                 AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString())
             };
-            await _apiClient.RidesIdCancelPostAsync(CacheEstimate.CancelationToken.ToString());
 
+            await _apiClient.RidesIdCancelPostAsync(CacheEstimate.CancelationToken.ToString());
 
             return CacheEstimate.CancelationCost;
         }
 
-        /**
-        * @brief Current stage of Lyft ride
-        * @startuml
-        * 
-        * @enduml
-        */
-        private Stage StagefromStatus (LyftAPI.Client.Model.RideStatusEnum? status) 
+        private Stage StagefromStatus (LyftAPI.Client.Model.RideStatusEnum? status)
         {
             switch (status)
             {
                 case LyftAPI.Client.Model.RideStatusEnum.Pending:
                     return Stage.Pending;
-                
+
                 case LyftAPI.Client.Model.RideStatusEnum.Arrived:
                 case LyftAPI.Client.Model.RideStatusEnum.PickedUp:
                 case LyftAPI.Client.Model.RideStatusEnum.Accepted:
@@ -235,6 +288,6 @@ namespace LyftClient.Services
                 default:
                     return Stage.Unknown;
             }
-        }     
+        }
     }
 }
