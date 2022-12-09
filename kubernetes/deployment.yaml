@@ -1,7 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: lyft-client
+    name: lyft
+    namespace: client
     labels:
         type: api-client
         client: lyft
@@ -23,3 +24,5 @@ spec:
                   ports:
                       - containerPort: 80
                       - containerPort: 443
+            imagePullSecrets:
+                - name: ridesaver-registry-credentials

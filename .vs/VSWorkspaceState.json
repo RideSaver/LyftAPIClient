@@ -1,0 +1,12 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\LyftAPIClient",
+    "\\Server",
+    "\\Server\\Extensions",
+    "\\Server\\Models",
+    "\\Server\\Services",
+    "\\WebClient"
+  ],
+  "PreviewInSolutionExplorer": false
+}
