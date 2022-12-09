@@ -1,34 +1,44 @@
 using Grpc.Core;
 using InternalAPI;
-<<<<<<< Updated upstream
-=======
+using LyftAPI.Client.Model;
+using LyftAPI.Client.Repository;
 using LyftClient.HTTPClient;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.AspNetCore.Authorization;
 using System.Text;
 using System.ComponentModel;
 using Microsoft.Bot.Schema;
-using LyftAPI;
-using LyftAPI.Client.Repository;
 using LyftApiClient.Server.Models;
-using LyftAPI.Client.Model;
 using LyftApiClient.Server.Extensions;
->>>>>>> Stashed changes
 
+/** Requests Service class
+/**
+* Lyft client which sends requests to a Requets Service thorugh TCP port protocol, then returned information is converted in gRPC
+*/
 namespace LyftClient.Services
 {
     public class RequestsService : Requests.RequestsBase // TBA
     {
+        // Summary: our logging object, used for diagnostic logs.
         private readonly ILogger<RequestsService> _logger;
+        // Summary: our API client, so we only open up some ports, rather than swamping the system.
+        private readonly IHttpClientInstance _httpClient;
+        // Summary: Our cache object
+        private readonly IDistributedCache _cache;
+        // Summary: our Lyft API client
+        private readonly LyftAPI.Client.Api.UserApi _apiClient;
 
-        public RequestsService(ILogger<RequestsService> logger)
+        private readonly LyftAPI.Client.Api.UserApi CacheEstimate;
+
+        private readonly IAccessTokenController _accessController;
+
+        public RequestsService(ILogger<RequestsService> logger, IDistributedCache cache, IHttpClientInstance httpClient, IAccessTokenController accessController)
         {
+            _httpClient = httpClient;
             _logger = logger;
-<<<<<<< Updated upstream
-=======
             _cache = cache;
-            _apiClient = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
-            CacheEstimate = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration {});
+            _apiClient = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration { });
+            CacheEstimate = new LyftAPI.Client.Api.UserApi(httpClient.APIClientInstance, new LyftAPI.Client.Client.Configuration { });
             _accessController = accessController;
         }
 
@@ -71,18 +81,18 @@ namespace LyftClient.Services
                 },
             };
 
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
             {
                 AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString())
             };
 
             var ride = await _apiClient.RidesPostAsync(_request);
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
             {
                 AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString())
             };
 
-            var RideDetails = await _apiClient.RidesIdGetAsync(ride.RideId); 
+            var RideDetails = await _apiClient.RidesIdGetAsync(ride.RideId);
 
             CacheEstimate.CancelationCost = new CurrencyModel()
             {
@@ -90,7 +100,7 @@ namespace LyftClient.Services
                 Currency = RideDetails.CancellationPrice.Currency
             };
 
-            CacheEstimate.CancelationToken = new Guid (RideDetails.CancellationPrice.Token);
+            CacheEstimate.CancelationToken = new Guid(RideDetails.CancellationPrice.Token);
 
             var rideModel = new RideModel()
             {
@@ -115,7 +125,7 @@ namespace LyftClient.Services
                     DriverPronounciation = RideDetails.Driver.FirstName,
                 },
 
-                RideStage = StagefromStatus (RideDetails.Status),
+                RideStage = StagefromStatus(RideDetails.Status),
 
                 DriverLocation = new LocationModel
                 {
@@ -126,7 +136,7 @@ namespace LyftClient.Services
 
             return rideModel;
         }
-        
+
         /**
         * @brief Gets new Lyft ride request 
         * @startuml
@@ -138,12 +148,12 @@ namespace LyftClient.Services
             var SessionToken = context.AuthContext.PeerIdentityPropertyName;
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration 
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
             {
                 AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString()),
             };
-            var ride = await _apiClient.RidesIdGetAsync(request.RideId); 
-            
+            var ride = await _apiClient.RidesIdGetAsync(request.RideId);
+
             return (new RideModel
             {
                 RideId = request.RideId,
@@ -167,7 +177,7 @@ namespace LyftClient.Services
                     DriverPronounciation = ride.Driver.FirstName
                 },
 
-                RideStage = StagefromStatus (ride.Status),
+                RideStage = StagefromStatus(ride.Status),
 
                 DriverLocation = new LocationModel
                 {
@@ -175,7 +185,56 @@ namespace LyftClient.Services
                     Longitude = ride.Location.Lng,
                 },
             });
->>>>>>> Stashed changes
+        }
+
+        /**
+        * @brief Deletes Lyft ride request 
+        * @startuml
+        * 
+        * @enduml
+        */
+        public override async Task<CurrencyModel> DeleteRideRequest(DeleteRideRequestModel request, ServerCallContext context)
+        {
+            var SessionToken = context.AuthContext.PeerIdentityPropertyName;
+            _logger.LogInformation("HTTP Context User: {User}", SessionToken);
+            var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
+            {
+                AccessToken = await _accessController.GetAccessTokenAsync(SessionToken, CacheEstimate.ProductId.ToString())
+            };
+            await _apiClient.RidesIdCancelPostAsync(CacheEstimate.CancelationToken.ToString());
+
+
+            return CacheEstimate.CancelationCost;
+        }
+
+        /**
+        * @brief Current stage of Lyft ride
+        * @startuml
+        * 
+        * @enduml
+        */
+        private Stage StagefromStatus(LyftAPI.Client.Model.RideStatusEnum? status)
+        {
+            switch (status)
+            {
+                case LyftAPI.Client.Model.RideStatusEnum.Pending:
+                    return Stage.Pending;
+
+                case LyftAPI.Client.Model.RideStatusEnum.Arrived:
+                case LyftAPI.Client.Model.RideStatusEnum.PickedUp:
+                case LyftAPI.Client.Model.RideStatusEnum.Accepted:
+                    return Stage.Accepted;
+
+                case LyftAPI.Client.Model.RideStatusEnum.Canceled:
+                    return Stage.Cancelled;
+
+                case LyftAPI.Client.Model.RideStatusEnum.DroppedOff:
+                    return Stage.Completed;
+
+                default:
+                    return Stage.Unknown;
+            }
         }
     }
 }
