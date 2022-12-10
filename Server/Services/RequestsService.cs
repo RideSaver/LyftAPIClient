@@ -66,20 +66,7 @@ namespace LyftClient.Services
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.EstimateId);
 
-            LyftAPI.Client.Model.Ride _request = new LyftAPI.Client.Model.Ride()
-            {
-                Origin = new Location()
-                {
-                    Lat = CacheEstimate.GetEstimatesRequest.StartPoint.Latitude,
-                    Lng = CacheEstimate.GetEstimatesRequest.StartPoint.Longitude
-                },
-
-                Destination = new Location()
-                {
-                    Lat = CacheEstimate.GetEstimatesRequest.EndPoint.Latitude,
-                    Lng = CacheEstimate.GetEstimatesRequest.EndPoint.Longitude
-                },
-            };
+            LyftAPI.Client.Model.Ride _request = new LyftAPI.Client.Model.CreateRideRequest();
 
             _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
             {
