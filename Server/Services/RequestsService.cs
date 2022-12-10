@@ -66,7 +66,7 @@ namespace LyftClient.Services
             _logger.LogInformation("HTTP Context User: {User}", SessionToken);
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.EstimateId);
 
-            LyftAPI.Client.Model.Ride _request = new LyftAPI.Client.Model.CreateRideRequest();
+            LyftAPI.Client.Model.CreateRideRequest _request = new LyftAPI.Client.Model.CreateRideRequest();
 
             _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
             {
