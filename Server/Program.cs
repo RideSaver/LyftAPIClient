@@ -19,7 +19,7 @@ builder.Services.AddTransient<IAccessTokenService, AccessTokenService>();
 
 builder.Services.Configure<ListenOptions>(options =>
 {
-    options.UseHttps(new X509Certificate2(Path.Combine("/certs/tls.crt"), Path.Combine("/certs/tls.key")));
+    options.UseHttps("/certs/tls.crt", "/certs/tls.key");
 });
 
 builder.Services.AddGrpc();
