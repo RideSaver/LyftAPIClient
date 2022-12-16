@@ -6,6 +6,9 @@ ARG github_token
 # Install tools
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends default-jre
+# Generate dev certificate
+RUN dotnet dev-certs https
+
 COPY .config /client/.config
 WORKDIR /client
 RUN dotnet tool restore
