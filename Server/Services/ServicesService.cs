@@ -1,4 +1,3 @@
-using Grpc.Net.Client;
 using InternalAPI;
 using ByteString = Google.Protobuf.ByteString;
 
@@ -7,12 +6,10 @@ namespace LyftClient.Services
         public class ServicesService : InternalAPI.Services.ServicesClient
         {
             private readonly InternalAPI.Services.ServicesClient _services;
-            private readonly GrpcChannel _channel;
 
             public ServicesService(InternalAPI.Services.ServicesClient services)
             {
                 _services = services;
-                _channel = GrpcChannel.ForAddress($"https://services.api:7042");
                 RegisterServiceRequest();
             }
 
@@ -20,9 +17,9 @@ namespace LyftClient.Services
             {
                 var request = new RegisterServiceRequest
                 {
-                    Id = ByteString.CopyFrom(Guid.Parse("d4abaae7-f4d6-4152-91cc-77523e8165a4").ToByteArray()),
-                    Name = "uber BLACK",
-                    ClientName = "uber",
+                    Id = ByteString.CopyFrom(Guid.Parse("2B2225AD-9D0E-45E0-85FB-378FE2B521E0").ToByteArray()),
+                    Name = "Lyft",
+                    ClientName = "Lyft",
                 };
                 request.Features.Add(ServiceFeatures.ProfessionalDriver);
                 _services.RegisterService(request);
@@ -30,9 +27,9 @@ namespace LyftClient.Services
 
                 request = new RegisterServiceRequest
                 {
-                    Id = ByteString.CopyFrom(Guid.Parse("26546650-e557-4a7b-86e7-6a3942445247").ToByteArray()),
-                    Name = "uber POOL",
-                    ClientName = "uber",
+                    Id = ByteString.CopyFrom(Guid.Parse("52648E86-B617-44FD-B753-295D5CE9D9DC").ToByteArray()),
+                    Name = "LyftShared",
+                    ClientName = "Lyft",
                 };
                 request.Features.Add(ServiceFeatures.Shared);
                 _services.RegisterService(request);
@@ -40,9 +37,19 @@ namespace LyftClient.Services
 
                 request = new RegisterServiceRequest
                 {
-                    Id = ByteString.CopyFrom(Guid.Parse("2d1d002b-d4d0-4411-98e1-673b244878b2").ToByteArray()),
-                    Name = "uber X",
-                    ClientName = "uber",
+                    Id = ByteString.CopyFrom(Guid.Parse("BB331ADE-E379-4F12-9AB0-A68AF94D5813").ToByteArray()),
+                    Name = "LyftXL",
+                    ClientName = "Lyft",
+                };
+                request.Features.Add(ServiceFeatures.ProfessionalDriver);
+                _services.RegisterService(request);
+                request.Features.Clear();
+
+                request = new RegisterServiceRequest
+                {
+                    Id = ByteString.CopyFrom(Guid.Parse("B47A0993-DE35-4F86-8DD8-C6462F16F5E8").ToByteArray()),
+                    Name = "LyftLUX",
+                    ClientName = "Lyft",
                 };
                 request.Features.Add(ServiceFeatures.ProfessionalDriver);
                 _services.RegisterService(request);
