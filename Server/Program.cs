@@ -34,6 +34,7 @@ builder.Services.AddGrpcClient<Users.UsersClient>(o =>
 });
 
 var app = builder.Build();
+app.UseRouting();
 
 app.UseEndpoints(endpoints =>
 {
@@ -43,5 +44,4 @@ app.UseEndpoints(endpoints =>
 
 
 app.UseHttpsRedirection();
-app.UseRouting();
 app.Run();
