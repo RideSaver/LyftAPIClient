@@ -24,7 +24,7 @@ LABEL org.opencontainers.image.licenses=MIT
 # Add tags to define the api image
 
 # Add some libs required by .NET runtime
-RUN apk add --no-cache libstdc++ libintl
+RUN apk add --no-cache libstdc++ libintl openssl
 
 EXPOSE 80
 EXPOSE 443
@@ -34,4 +34,4 @@ ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 WORKDIR /app
 COPY --from=builder /client/publish ./
 
-ENTRYPOINT ["./LyftClient", "--urls", "http://0.0.0.0:80"]
+ENTRYPOINT ["./LyftClient", "--urls", "https://0.0.0.0:443"]
