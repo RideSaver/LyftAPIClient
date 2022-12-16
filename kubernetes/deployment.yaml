@@ -1,28 +1,51 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lyft-cert
+  namespace: client
+spec:
+  secretName: lyft-cert-secret
+  dnsNames:
+    - lyft
+    - lyft.client
+  issuerRef:
+    name: ridesaver-ca
+    kind: ClusterIssuer
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: lyft
-    namespace: client
-    labels:
+  name: lyft
+  namespace: client
+  labels:
+    type: api-client
+    client: lyft
+spec:
+  selector:
+    matchLabels:
+      type: api-client
+      client: lyft
+  replicas: 1
+  template:
+    metadata:
+      labels:
         type: api-client
         client: lyft
-spec:
-    selector:
-        matchLabels:
-            type: api-client
-            client: lyft
-    replicas: 1
-    template:
-        metadata:
-            labels:
-                type: api-client
-                client: lyft
-        spec:
-            containers:
-                - name: lyft
-                  image: ghcr.io/ridesaver/lyftclient:latest
-                  ports:
-                      - containerPort: 80
-                      - containerPort: 443
-            imagePullSecrets:
-                - name: ridesaver-registry-credentials
+    spec:
+      containers:
+        - name: lyft
+          image: ghcr.io/ridesaver/lyftclient:latest
+          ports:
+            - containerPort: 80
+            - containerPort: 443
+          volumeMounts:
+            - name: certificate
+              mountPath: /certs
+              readOnly: true
+      volumes:
+        - name: certificate
+          secret:
+            secretName: lyft-cert-secret
+            optional: true
+      imagePullSecrets:
+        - name: ridesaver-registry-credentials
