@@ -33,11 +33,15 @@ builder.Services.AddGrpcClient<Users.UsersClient>(o =>
     o.Address = new Uri($"https://identity-service.api:443");
 });
 
-
 var app = builder.Build();
 
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapGrpcService<EstimatesService>();
+    endpoints.MapGrpcService<RequestsService>();
+});
+
+
 app.UseHttpsRedirection();
-app.MapGrpcService<EstimatesService>();
-app.MapGrpcService<RequestsService>();
 app.UseRouting();
 app.Run();
