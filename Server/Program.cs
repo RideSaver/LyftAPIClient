@@ -19,7 +19,7 @@ builder.Services.AddTransient<IAccessTokenService, AccessTokenService>();
 
 builder.Services.Configure<ListenOptions>(options =>
 {
-    options.UseHttps("/certs/tls.crt", "/certs/tls.key");
+    options.UseHttps("/certs/certificate.pfx");
 });
 
 builder.Services.AddGrpc();

@@ -32,6 +32,18 @@ spec:
         type: api-client
         client: lyft
     spec:
+      initContainers:
+        - name: init-myservice
+          image: alpine/openssl:latest
+          command:
+            - sh
+            - -c
+            - "openssl pkcs12 -export -out /pfx/certificate.pfx -inkey /certs/tls.key -in /certs/tls.crt -passout pass:"
+          volumeMounts:
+            - name: certificate
+              mountPath: /certs
+            - name: pfx-certificate
+              mountPath: /pfx
       containers:
         - name: lyft
           image: ghcr.io/ridesaver/lyftclient:latest
@@ -39,15 +51,16 @@ spec:
             - containerPort: 80
             - containerPort: 443
           args:
-            - --urls https://0.0.0.0:443,http://0.0.0.0:80
+            - --urls http://0.0.0.0:80
           volumeMounts:
-            - name: certificate
+            - name: pfx-certificate
               mountPath: /certs
-              readOnly: true
       volumes:
         - name: certificate
           secret:
             secretName: lyft-cert-secret
             optional: true
+        - name: pfx-certificate
+          emptyDir: {}
       imagePullSecrets:
         - name: ridesaver-registry-credentials
