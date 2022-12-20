@@ -33,9 +33,9 @@ namespace LyftClient.Services
         {
             _logger.LogInformation("[LyftClient::RequestsService::PostRideRequest] Method invoked at {DT}", DateTime.UtcNow.ToLongTimeString());
 
-            var SessionToken = context.AuthContext.PeerIdentityPropertyName;
+            var SessionToken = context.AuthContext.FindPropertiesByName("token").ToString();
 
-            _logger.LogInformation("[LyftClient::RequestsService::PostRideRequest] HTTP Context User: {User}", SessionToken);
+            _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] HTTP Context session token: {SessionToken}");
 
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.EstimateId);
 
@@ -93,9 +93,9 @@ namespace LyftClient.Services
 
         public override async Task<RideModel> GetRideRequest(GetRideRequestModel request, ServerCallContext context)
         {
-            var SessionToken = context.AuthContext.PeerIdentityPropertyName;
+            var SessionToken = context.AuthContext.FindPropertiesByName("token").ToString();
 
-            _logger.LogInformation("[LyftClient::RequestsService::GetRideRequest] HTTP Context User: {User}", SessionToken);
+            _logger.LogInformation($"[LyftClient::RequestsService::GetRideRequest] HTTP Context session token: {SessionToken}");
 
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
 
@@ -135,9 +135,9 @@ namespace LyftClient.Services
 
         public override async Task<CurrencyModel> DeleteRideRequest(DeleteRideRequestModel request, ServerCallContext context)
         {
-            var SessionToken = context.AuthContext.PeerIdentityPropertyName;
+            var SessionToken = context.AuthContext.FindPropertiesByName("token").ToString();
 
-            _logger.LogInformation("[LyftClient::RequestsService::GetRideRequest] HTTP Context User: {User}", SessionToken);
+            _logger.LogInformation($"[LyftClient::RequestsService::GetRideRequest] HTTP Context User: {SessionToken}");
 
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
 

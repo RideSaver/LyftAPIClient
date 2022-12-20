@@ -35,8 +35,9 @@ namespace LyftClient.Services
    
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
-            var SessionToken = context.AuthContext.PeerIdentityPropertyName;
-            _logger.LogInformation("[LyftClient::EstimatesService::GetEstimates] HTTP Context User: {User}", SessionToken);
+            var SessionToken = context.AuthContext.FindPropertiesByName("token").ToString();
+
+            _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] HTTP Context session token : {SessionToken}", SessionToken);
 
             // Loop through all the services in the request
             foreach (var service in request.Services)
