@@ -4,7 +4,7 @@ metadata:
   name: lyft-cert
   namespace: client
 spec:
-  secretName: lyft-cert-secret
+  secretName: selfsigned-ca # lyft-cert-secret
   dnsNames:
     - lyft
     - lyft.client
@@ -52,6 +52,9 @@ spec:
             - containerPort: 443
           args:
             - --urls http://0.0.0.0:80
+          env:
+            - name: ASPNETCORE_Kestrel__Certificates__Default__Path
+              value: /certs/certificate.pfx
           volumeMounts:
             - name: pfx-certificate
               mountPath: /certs
