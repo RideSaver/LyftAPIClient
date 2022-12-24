@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "LyftClient.fullname" . }}
+  name: {{ include "LyftClient.fullname" . }}-redis
   labels:
     {{ include "LyftClient.labels" . | nindent 4 }}
 spec:
@@ -9,7 +9,7 @@ spec:
   replicas: {{ .Values.redis.replicas }}
   selector:
     matchLabels:
-      app: lyft-redis
+      {{ include "LyftClient.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
@@ -17,7 +17,7 @@ spec:
     spec:
       initContainers:
         - name: redis-config
-          image: {{- .Values.redis.image.name -}}:{{- .Values.redis.image.tag -}}
+          image: "{{- .Values.redis.image.name -}}:{{ .Values.redis.image.tag }}"
           command:
             - sh
             - '-c'
@@ -49,7 +49,7 @@ spec:
               mountPath: /tmp/redis/
       containers:
         - name: redis
-          image: {{- .Values.redis.image.name -}}:{{- .Values.redis.image.tag -}}
+          image: "{{- .Values.redis.image.name -}}:{{- .Values.redis.image.tag -}}"
           command:
             - redis-server
           args:
@@ -72,11 +72,12 @@ spec:
         - name: node-config
           emptyDir: {}
         - name: certs
+          secret:
             secretName: {{ include "LyftClient.fullname" . }}-redis-certificate
             optional: false
         - name: redis-config
           configMap:
-            name: lyft-redis-config
+            name: {{ include "LyftClient.fullname" . }}-redis-conf
   volumeClaimTemplates:
     - metadata:
         name: lyft-redis-data
