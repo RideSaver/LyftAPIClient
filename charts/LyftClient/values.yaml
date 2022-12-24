@@ -70,8 +70,13 @@ autoscaling:
   enabled: true
   minReplicas: 1
   maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  target:
+    cpu:
+      type: Utilization
+      percentage: 80
+    memory:
+      type: Utilization
+      percentage: 80
 
 nodeSelector: {}
 
@@ -87,10 +92,10 @@ redis:
   resources:
     limits:
       cpu: 100m
-      memory: 6GB
+      memory: 6Gi
     requests:
       cpu: 100m
-      memory: 4GB
+      memory: 4Gi
       storage: 500Mi
   storage:
     class: local-storage
