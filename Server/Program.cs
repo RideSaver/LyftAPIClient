@@ -13,6 +13,7 @@ builder.Services.AddDistributedRedisCache(options =>
     options.Configuration = "lyft-redis:6379";
     options.InstanceName = "";
 });
+builder.Services.AddHealthChecks();
 
 builder.Services.AddHttpClient();
 builder.Services.AddTransient<IAccessTokenService, AccessTokenService>();
@@ -44,4 +45,5 @@ app.UseEndpoints(endpoints =>
 
 
 app.UseHttpsRedirection();
+app.MapHealthChecks("/healthz");
 app.Run();
