@@ -37,4 +37,4 @@ ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 WORKDIR /app
 COPY --from=builder /client/publish ./
 
-ENTRYPOINT ["./LyftClient", "--urls", "https://0.0.0.0:443"]
+ENTRYPOINT ["./LyftClient", "--urls", "http://0.0.0.0:80;https://0.0.0.0:443"]
