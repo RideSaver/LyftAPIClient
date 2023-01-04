@@ -12,12 +12,12 @@ namespace LyftClient.Services
         {
             var headers = new Metadata
             {
-                { "token", $"{SessionToken}" }
+                { "Authorization", $"{SessionToken}" }
             };
 
             var AccessTokenResponse = await _client.GetUserAccessTokenAsync(new GetUserAccessTokenRequest { ServiceId = ServiceId }, headers);
 
-            if (AccessTokenResponse is null) return null;
+            if (AccessTokenResponse is null) return String.Empty;
 
             return AccessTokenResponse.AccessToken;
         }

@@ -1,4 +1,3 @@
-// using LyftClient.HTTPClient;
 using LyftClient.Services;
 using InternalAPI;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -10,32 +9,43 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMvc();
 builder.Services.AddDistributedRedisCache(options =>
 {
-    options.Configuration = "lyft-redis:6379";
+    options.Configuration = "https://lyft-redis:6379";
     options.InstanceName = "";
-});
-builder.Services.AddHealthChecks();
-
-builder.Services.AddHttpClient();
-builder.Services.AddTransient<IAccessTokenService, AccessTokenService>();
-
-builder.Services.Configure<ListenOptions>(options =>
-{
-    options.UseHttps("/certs/certificate.pfx");
 });
 
 builder.Services.AddGrpc();
+builder.Services.AddHealthChecks();
+builder.Services.AddHttpClient();
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddTransient<IAccessTokenService, AccessTokenService>();
+builder.Services.AddSingleton<IServicesService, ServicesService>();
+
+builder.Services.AddHostedService<ServicesService>();
+
+builder.Services.Configure<ListenOptions>(options =>
+{
+    options.UseHttps(new X509Certificate2(Path.Combine("/certs/tls.crt"), Path.Combine("/certs/tls.key")));
+});
+
 builder.Services.AddGrpcClient<Services.ServicesClient>(o =>
 {
+    var httpHandler = new HttpClientHandler();
+    httpHandler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
     o.Address = new Uri($"https://services.api:443");
 });
 
 builder.Services.AddGrpcClient<Users.UsersClient>(o =>
 {
-    o.Address = new Uri($"https://identity-service.api:443");
+    o.Address = new Uri($"https://identity.api:443");
 });
 
 var app = builder.Build();
 app.UseRouting();
+
+app.UseHttpsRedirection();
+app.MapControllers();
+app.MapHealthChecks("/healthz");
 
 app.UseEndpoints(endpoints =>
 {
@@ -43,7 +53,4 @@ app.UseEndpoints(endpoints =>
     endpoints.MapGrpcService<RequestsService>();
 });
 
-
-app.UseHttpsRedirection();
-app.MapHealthChecks("/healthz");
 app.Run();
