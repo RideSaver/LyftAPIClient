@@ -18,12 +18,13 @@ namespace LyftClient.Services
         private readonly IDistributedCache _cache;
         private readonly IAccessTokenService _accessToken;
         private readonly ILogger<EstimatesService> _logger;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         private readonly HttpClient _httpClient;
         private readonly LyftClient_API _apiClient;
 
  
-        public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache, IAccessTokenService accessToken, IHttpClientFactory clientFactory)
+        public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache, IAccessTokenService accessToken, IHttpClientFactory clientFactory, IHttpContextAccessor httpContextAccessor)
         {
             _clientFactory= clientFactory;
             _httpClient = _clientFactory.CreateClient();
@@ -31,11 +32,12 @@ namespace LyftClient.Services
             _cache = cache;
             _apiClient = new LyftClient_API(_httpClient, new LyftAPI.Client.Client.Configuration {});
             _accessToken = accessToken;
+            _httpContextAccessor = httpContextAccessor;
         }
    
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
-            var SessionToken = context.AuthContext.FindPropertiesByName("token").ToString();
+            var SessionToken = "" + _httpContextAccessor.HttpContext.Request.Headers["token"];
 
             _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] HTTP Context session token : {SessionToken}", SessionToken);
 
