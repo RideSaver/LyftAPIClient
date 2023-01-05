@@ -674,7 +674,7 @@ tags:
   - name: Restricted
     description: Endpoints that require special permission from Lyft to use
 servers:
-  - url: https://api.lyft.com/v1
+  - url: https://lyft.mock:443
 components:
   parameters:
     LatParam:
