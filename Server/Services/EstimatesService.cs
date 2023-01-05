@@ -47,7 +47,7 @@ namespace LyftClient.Services
 
             foreach (var service in request.Services)
             {
-                ServiceIDs.serviceIDs.TryGetValue(service, out string? serviceName);
+                ServiceIDs.serviceIDs.TryGetValue(service.ToUpper(), out string? serviceName);
                 if (serviceName is null) continue;
 
                 if(_accessToken is null)
@@ -60,7 +60,9 @@ namespace LyftClient.Services
                 {
                     AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, service!)
                 };
-                   
+
+                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Requesting data from the MockAPI...");
+
                 var estimate = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
                 var estimateId = DataAccess.Services.ServiceID.CreateServiceID(service);
 
