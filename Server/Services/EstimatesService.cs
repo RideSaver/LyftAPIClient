@@ -5,7 +5,6 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.AspNetCore.Authorization;
 using LyftApiClient.Server.Models;
 using LyftApiClient.Server.Extensions;
-
 using LyftClient_API = LyftAPI.Client.Api.PublicApi;
 
 namespace LyftClient.Services
@@ -23,7 +22,6 @@ namespace LyftClient.Services
         private readonly HttpClient _httpClient;
         private readonly LyftClient_API _apiClient;
 
- 
         public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache, IAccessTokenService accessToken, IHttpClientFactory clientFactory, IHttpContextAccessor httpContextAccessor)
         {
             _clientFactory= clientFactory;
@@ -37,11 +35,16 @@ namespace LyftClient.Services
    
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
-            var SessionToken = "" + _httpContextAccessor.HttpContext.Request.Headers["token"];
+            var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
+            _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] HTTP Context Session Token : {SessionToken}", SessionToken);
 
-            _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] HTTP Context session token : {SessionToken}", SessionToken);
 
-            // Loop through all the services in the request
+            _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: START: {request.StartPoint} END: {request.EndPoint} SEATS: {request.Seats} ");
+            foreach(var service in request.Services)
+            {
+                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: SERVICE: {service}");
+            }
+
             foreach (var service in request.Services)
             {
                 ServiceIDs.serviceIDs.TryGetValue(service, out string? serviceName);
@@ -50,7 +53,7 @@ namespace LyftClient.Services
                 if(_accessToken is null)
                 {
                     _logger.LogInformation("[LyftClient::EstimatesService::GetEstimates] AccessToken is null.");
-                    break;
+                    continue;
                 }
 
                 _apiClient.Configuration = new LyftAPI.Client.Client.Configuration // Get estimate with parameters
@@ -60,6 +63,8 @@ namespace LyftClient.Services
                    
                 var estimate = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
                 var estimateId = DataAccess.Services.ServiceID.CreateServiceID(service);
+
+                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] MockAPI Partial Response Data: {estimate.CostEstimates[0].DisplayName}");
 
                 // Write an InternalAPI model back
                 var estimateModel = new EstimateModel()
