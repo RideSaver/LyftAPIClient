@@ -1,6 +1,7 @@
 using Grpc.Core;
 using Grpc.Net.Client;
 using InternalAPI;
+using LyftClient.Interface;
 
 namespace LyftClient.Internal
 {

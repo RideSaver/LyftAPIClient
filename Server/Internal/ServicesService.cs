@@ -1,4 +1,5 @@
 using InternalAPI;
+using LyftClient.Interface;
 using ByteString = Google.Protobuf.ByteString;
 
 namespace LyftClient.Internal
