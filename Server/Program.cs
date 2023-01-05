@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.Security.Cryptography.X509Certificates;
 using LyftClient.Interface;
 using LyftClient.Internal;
+using LyftClient.Filters;
+using Microsoft.ApplicationInsights.Extensibility;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +24,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddTransient<IAccessTokenService, AccessTokenService>();
 builder.Services.AddSingleton<IServicesService, ServicesService>();
+builder.Services.AddSingleton<ITelemetryInitializer, FilterHealthchecksTelemetryInitializer>();
 
 builder.Services.AddHostedService<ServicesService>();
 
