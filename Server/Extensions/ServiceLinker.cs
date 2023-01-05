@@ -1,4 +1,4 @@
-namespace LyftClient.Services
+namespace LyftClient.Extensions
 {
     // Summary: Stores all services with relation to their internal id
     public class ServiceIDs

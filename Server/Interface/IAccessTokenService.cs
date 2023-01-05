@@ -1,4 +1,4 @@
-namespace LyftClient.Services
+namespace LyftClient.Interface
 {
     public interface IAccessTokenService
     {

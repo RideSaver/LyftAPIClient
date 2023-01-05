@@ -3,6 +3,7 @@ using InternalAPI;
 using Microsoft.Extensions.Caching.Distributed;
 using LyftApiClient.Server.Models;
 using LyftApiClient.Server.Extensions;
+using LyftClient.Interface;
 
 using UserAPI = LyftAPI.Client.Api.UserApi;
 
@@ -34,7 +35,7 @@ namespace LyftClient.Services
         {
             _logger.LogInformation("[LyftClient::RequestsService::PostRideRequest] Method invoked at {DT}", DateTime.UtcNow.ToLongTimeString());
 
-            var SessionToken = "" + _httpContextAccessor.HttpContext.Request.Headers["token"];
+            var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
 
             _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] HTTP Context session token: {SessionToken}");
 
@@ -94,7 +95,7 @@ namespace LyftClient.Services
 
         public override async Task<RideModel> GetRideRequest(GetRideRequestModel request, ServerCallContext context)
         {
-            var SessionToken = "" + _httpContextAccessor.HttpContext.Request.Headers["token"];
+            var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
 
             _logger.LogInformation($"[LyftClient::RequestsService::GetRideRequest] HTTP Context session token: {SessionToken}");
 
@@ -136,7 +137,7 @@ namespace LyftClient.Services
 
         public override async Task<CurrencyModel> DeleteRideRequest(DeleteRideRequestModel request, ServerCallContext context)
         {
-            var SessionToken = "" + _httpContextAccessor.HttpContext.Request.Headers["token"];
+            var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
 
             _logger.LogInformation($"[LyftClient::RequestsService::GetRideRequest] HTTP Context User: {SessionToken}");
 

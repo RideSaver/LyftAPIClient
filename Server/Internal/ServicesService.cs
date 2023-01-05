@@ -1,9 +1,9 @@
 using InternalAPI;
 using ByteString = Google.Protobuf.ByteString;
 
-namespace LyftClient.Services
+namespace LyftClient.Internal
 {
-    public class ServicesService : InternalAPI.Services.ServicesClient , IServicesService, IHostedService
+    public class ServicesService : InternalAPI.Services.ServicesClient, IServicesService, IHostedService
     {
         private readonly InternalAPI.Services.ServicesClient _services;
         private readonly ILogger<ServicesService> _logger;

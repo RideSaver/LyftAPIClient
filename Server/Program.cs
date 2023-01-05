@@ -2,6 +2,8 @@ using LyftClient.Services;
 using InternalAPI;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.Security.Cryptography.X509Certificates;
+using LyftClient.Interface;
+using LyftClient.Internal;
 
 var builder = WebApplication.CreateBuilder(args);
 

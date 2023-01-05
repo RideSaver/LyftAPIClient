@@ -2,10 +2,11 @@ using Grpc.Core;
 using InternalAPI;
 using LyftAPI.Client.Model;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.AspNetCore.Authorization;
 using LyftApiClient.Server.Models;
 using LyftApiClient.Server.Extensions;
 using LyftClient_API = LyftAPI.Client.Api.PublicApi;
+using LyftClient.Interface;
+using LyftClient.Extensions;
 
 namespace LyftClient.Services
 {
@@ -36,14 +37,17 @@ namespace LyftClient.Services
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
             var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
+
+            //----------------------------------------------------------[DEBUG]---------------------------------------------------------------//
             _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] HTTP Context Session Token : {SessionToken}", SessionToken);
-
-
             _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: START: {request.StartPoint} END: {request.EndPoint} SEATS: {request.Seats} ");
             foreach(var service in request.Services)
             {
-                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: SERVICE: {service}");
+                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: SERVICE ID: {service}");
+                ServiceIDs.serviceIDs.TryGetValue(service.ToUpper(), out string? logging_name);
+                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: SERVICE NAME: {logging_name}");
             }
+            //--------------------------------------------------------------------------------------------------------------------------------//
 
             foreach (var service in request.Services)
             {

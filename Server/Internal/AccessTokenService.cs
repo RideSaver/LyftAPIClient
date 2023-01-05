@@ -2,7 +2,7 @@ using Grpc.Core;
 using Grpc.Net.Client;
 using InternalAPI;
 
-namespace LyftClient.Services
+namespace LyftClient.Internal
 {
     public class AccessTokenService : IAccessTokenService
     {
@@ -17,7 +17,7 @@ namespace LyftClient.Services
 
             var AccessTokenResponse = await _client.GetUserAccessTokenAsync(new GetUserAccessTokenRequest { ServiceId = ServiceId }, headers);
 
-            if (AccessTokenResponse is null) return String.Empty;
+            if (AccessTokenResponse is null) return string.Empty;
 
             return AccessTokenResponse.AccessToken;
         }
