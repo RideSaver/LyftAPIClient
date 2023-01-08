@@ -32,9 +32,9 @@ namespace LyftClient.Services
             _httpClient = _clientFactory.CreateClient();
             _logger = logger;
             _cache = cache;
-            _apiClient = new PublicApi(_httpClient, new LyftAPI.Client.Client.Configuration {});
+            _apiClient = new PublicApi();
         }
-   
+
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
             var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
@@ -117,7 +117,7 @@ namespace LyftClient.Services
                 }
             }
         }
-        
+
         public override async Task<EstimateModel> GetEstimateRefresh(GetEstimateRefreshRequest request, ServerCallContext context)
         {
             var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
@@ -135,7 +135,7 @@ namespace LyftClient.Services
             ServiceLinker.ServiceIDs.TryGetValue(estimateResponseId.ToUpper(), out string? serviceName);
 
             _apiClient.Configuration = new LyftAPI.Client.Client.Configuration { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, estimateResponseId!) };
-    
+
             _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimateRefresh] Requesting data from the MockAPI...");
 
             var estimateResponse = await _apiClient.EstimateAsync(estimateInstance!.StartPoint.Latitude, estimateInstance.StartPoint.Longitude, serviceName, estimateInstance.EndPoint.Latitude, estimateInstance.EndPoint.Longitude);
