@@ -100,12 +100,7 @@ namespace LyftClient.Services
 
                     var estimateCache = new EstimateCache()
                     {
-                        Cost = new Cost()
-                        {
-                            Currency = estimateModel.PriceDetails.Currency.ToString(),
-                            Amount = (int)estimateModel.PriceDetails.Price,
-                            Description = "Estimate price details",
-                        },
+                        Cost = new Cost((int)estimateModel.PriceDetails.Price, estimateModel.PriceDetails.Currency.ToString(), "Estimate price details"),
                         GetEstimatesRequest = request,
                         ProductId = Guid.Parse(estimateResponseId)
                     };
