@@ -38,6 +38,7 @@ namespace LyftClient.Services
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
             var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
+            string clientId = "al0I63Gjwk3Wsmhq_EL8_HxB8qWlO7yY";
 
             DistributedCacheEntryOptions options = new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24), SlidingExpiration = TimeSpan.FromHours(5) };
 
@@ -72,52 +73,55 @@ namespace LyftClient.Services
 
                 _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Requesting data from the MockAPI...");
 
-                var estimate = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
-                var estimateId = DataAccess.Services.ServiceID.CreateServiceID(service).ToString();
+                var estimateResponse = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
+                var estimateResponseId = DataAccess.Services.ServiceID.CreateServiceID(service).ToString();
 
                 _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Received (CostEstimateResponse) from MockAPI... \n{estimate}");
 
-                // Write an InternalAPI model back
-                var estimateModel = new EstimateModel()
+                foreach(var estimate in estimateResponse.CostEstimates)
                 {
-                    EstimateId = estimateId,
-                    CreatedTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now),
-
-                    PriceDetails = new CurrencyModel
+                    var estimateModel = new EstimateModel()
                     {
-                        Price = estimate.CostEstimates[0].EstimatedCostCentsMax,
-                        Currency = estimate.CostEstimates[0].Currency
-                    },
+                        EstimateId = estimateResponseId,
+                        CreatedTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime()),
+                        InvalidTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.AddMinutes(5).ToUniversalTime()),
+                        PriceDetails = new CurrencyModel
+                        {
+                            Price = estimate.EstimatedCostCentsMax,
+                            Currency = estimate.Currency
+                        },
+                        Distance = (int)estimate.EstimatedDistanceMiles,
+                        Seats = request.Seats,
+                        RequestUrl = $"https://lyft.mock/client_id={clientId}&action=setPickup&pickup[latitude]={request.StartPoint.Latitude}&pickup[longitude]={request.StartPoint.Longitude}&dropoff[latitude]={request.EndPoint.Latitude}&dropoff[longitude]={request.EndPoint.Longitude}&product_id={requestInstance.ProductId}",
+                        DisplayName = estimate.DisplayName
+                    };
 
-                    Distance = (int)estimate.CostEstimates[0].EstimatedDistanceMiles,
-                    Seats = request.Seats,
-                    RequestUrl  = "",
-                    DisplayName = estimate.CostEstimates[0].DisplayName
-                };
+                    estimateModel.WayPoints.Add(request.StartPoint);
+                    estimateModel.WayPoints.Add(request.EndPoint);
 
-                estimateModel.WayPoints.Add(request.StartPoint);
-                estimateModel.WayPoints.Add(request.EndPoint);
+                    _logger.LogInformation($"[UberClient::EstimatesService::GetEstimates] Adding (EstimateCache) to the cache...");
 
-                _logger.LogInformation($"[UberClient::EstimatesService::GetEstimates] Adding (EstimateCache) to the cache...");
-
-                await _cache.SetAsync(estimateId, new EstimateCache
-                {
-                    Cost = new Cost()
+                    await _cache.SetAsync(estimateResponseId, new EstimateCache
                     {
-                        Currency = estimateModel.PriceDetails.Currency,
-                        Amount = (int)estimateModel.PriceDetails.Price
-                    },
-                    GetEstimatesRequest = new GetEstimatesRequest() 
-                    { 
-                        StartPoint = estimateModel.WayPoints[0],
-                        EndPoint = estimateModel.WayPoints[1],
-                        Seats = estimateModel.Seats
-                    },
-                    ProductId = Guid.Parse(estimateId)
-                }, options);
+                        Cost = new Cost()
+                        {
+                            Currency = estimateModel.PriceDetails.Currency,
+                            Amount = (int)estimateModel.PriceDetails.Price
+                        },
+                        GetEstimatesRequest = new GetEstimatesRequest()
+                        {
+                            StartPoint = estimateModel.WayPoints[0],
+                            EndPoint = estimateModel.WayPoints[1],
+                            Seats = estimateModel.Seats
+                        },
+                        ProductId = Guid.Parse(estimateResponseId)
+                    }, options);
 
-                await responseStream.WriteAsync(estimateModel);
-                await Task.Delay(TimeSpan.FromSeconds(1));
+                    _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Sending (EstimateModel) back to caller...");
+
+                    await responseStream.WriteAsync(estimateModel);
+                    await Task.Delay(TimeSpan.FromSeconds(1));
+                }
             }
         }
         
