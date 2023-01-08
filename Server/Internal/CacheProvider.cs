@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
-using UberClient.Interface;
+using LyftClient.Interface;
 
-namespace UberClient.Internal
+namespace LyftClient.Internal
 {
     public class CacheProvider : ICacheProvider
     {
