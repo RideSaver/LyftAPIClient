@@ -45,11 +45,10 @@ namespace LyftClient.Services
             //----------------------------------------------------------[DEBUG]---------------------------------------------------------------//
             _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] HTTP Context Session Token : {SessionToken}", SessionToken);
             _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: START: {request.StartPoint} END: {request.EndPoint} SEATS: {request.Seats} ");
-            foreach(var service in request.Services)
+            foreach (var service in request.Services)
             {
-                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: SERVICE ID: {service}");
                 ServiceIDs.serviceIDs.TryGetValue(service.ToUpper(), out string? logging_name);
-                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: SERVICE NAME: {logging_name}");
+                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: ServiceID: {service} - Service Name: {logging_name}");
             }
             //--------------------------------------------------------------------------------------------------------------------------------//
 
