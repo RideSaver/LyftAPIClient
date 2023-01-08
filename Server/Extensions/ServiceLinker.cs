@@ -1,9 +1,9 @@
 namespace LyftClient.Extensions
 {
     // Summary: Stores all services with relation to their internal id
-    public class ServiceIDs
+    public class ServiceLinker
     {
-        public static readonly Dictionary<string, string> serviceIDs = new Dictionary<string, string>
+        public static readonly Dictionary<string, string> ServiceIDs = new Dictionary<string, string>
         {
             {"2B2225AD-9D0E-45E0-85FB-378FE2B521E0", "lyft"},
             {"52648E86-B617-44FD-B753-295D5CE9D9DC", "lyft_shared"},

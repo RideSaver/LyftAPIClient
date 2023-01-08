@@ -62,6 +62,7 @@ builder.Services.AddSingleton<IServicesService, ServicesService>();
 builder.Services.AddSingleton<ITelemetryInitializer, FilterHealthchecksTelemetryInitializer>();
 
 builder.Services.AddHostedService<ServicesService>();
+builder.Services.AddHostedService<CertificateStatusService>();
 
 builder.Services.Configure<ListenOptions>(options =>
 {

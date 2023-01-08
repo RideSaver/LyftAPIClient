@@ -47,16 +47,17 @@ namespace LyftClient.Services
             _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: START: {request.StartPoint} END: {request.EndPoint} SEATS: {request.Seats} ");
             foreach (var service in request.Services)
             {
-                ServiceIDs.serviceIDs.TryGetValue(service.ToUpper(), out string? logging_name);
+                ServiceLinker.ServiceIDs.TryGetValue(service.ToUpper(), out string? logging_name);
                 _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Request: ServiceID: {service} - Service Name: {logging_name}");
             }
             //--------------------------------------------------------------------------------------------------------------------------------//
 
             var servicesList = request.Services.ToList();
 
+
             foreach (var service in servicesList)
             {
-                ServiceIDs.serviceIDs.TryGetValue(service.ToUpper(), out string? serviceName);
+                ServiceLinker.ServiceIDs.TryGetValue(service.ToUpper(), out string? serviceName);
                 if (serviceName is null) continue;
 
                 if(_accessToken is null)
