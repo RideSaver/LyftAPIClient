@@ -76,10 +76,12 @@ namespace LyftClient.Services
                 var estimateResponse = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
                 var estimateResponseId = DataAccess.Services.ServiceID.CreateServiceID(service).ToString();
 
-                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Received (CostEstimateResponse) from MockAPI... \n{estimateResponse}");
+                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Received (CostEstimateResponse) from MockAPI...");
 
                 foreach(var estimate in estimateResponse.CostEstimates)
                 {
+                    _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Translating (CostEstimate) for gRPC... \n{estimate}");
+
                     var estimateModel = new EstimateModel()
                     {
                         EstimateId = estimateResponseId,
@@ -93,29 +95,25 @@ namespace LyftClient.Services
                         Distance = (int)estimate.EstimatedDistanceMiles,
                         Seats = request.Seats,
                         RequestUrl = $"https://lyft.mock/client_id={clientId}&action=setPickup&pickup[latitude]={request.StartPoint.Latitude}&pickup[longitude]={request.StartPoint.Longitude}&dropoff[latitude]={request.EndPoint.Latitude}&dropoff[longitude]={request.EndPoint.Longitude}&product_id={service}",
-                        DisplayName = estimate.DisplayName
+                        DisplayName = estimate.DisplayName,
+                        WayPoints = { { request.StartPoint }, { request.EndPoint }, }
                     };
 
-                    estimateModel.WayPoints.Add(request.StartPoint);
-                    estimateModel.WayPoints.Add(request.EndPoint);
-
-                    _logger.LogInformation($"[UberClient::EstimatesService::GetEstimates] Adding (EstimateCache) to the cache...");
-
-                    await _cache.SetAsync(estimateResponseId, new EstimateCache
+                    var estimateCache = new EstimateCache()
                     {
                         Cost = new Cost()
                         {
-                            Currency = estimateModel.PriceDetails.Currency,
-                            Amount = (int)estimateModel.PriceDetails.Price
+                            Currency = estimateModel.PriceDetails.Currency.ToString(),
+                            Amount = (int)estimateModel.PriceDetails.Price,
+                            Description = "Estimate price details",
                         },
-                        GetEstimatesRequest = new GetEstimatesRequest()
-                        {
-                            StartPoint = estimateModel.WayPoints[0],
-                            EndPoint = estimateModel.WayPoints[1],
-                            Seats = estimateModel.Seats
-                        },
+                        GetEstimatesRequest = request,
                         ProductId = Guid.Parse(estimateResponseId)
-                    }, options);
+                    };
+
+                    _logger.LogInformation($"[UberClient::EstimatesService::GetEstimates] Adding (EstimateCache) to the cache... \n{estimateCache}");
+
+                    await _cache.SetAsync(estimateResponseId, estimateCache, options);
 
                     _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Sending (EstimateModel) back to caller...");
 
