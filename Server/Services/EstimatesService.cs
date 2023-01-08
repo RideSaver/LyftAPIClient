@@ -76,7 +76,7 @@ namespace LyftClient.Services
                 var estimateResponse = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
                 var estimateResponseId = DataAccess.Services.ServiceID.CreateServiceID(service).ToString();
 
-                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Received (CostEstimateResponse) from MockAPI... \n{estimate}");
+                _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Received (CostEstimateResponse) from MockAPI... \n{estimateResponse}");
 
                 foreach(var estimate in estimateResponse.CostEstimates)
                 {
@@ -92,7 +92,7 @@ namespace LyftClient.Services
                         },
                         Distance = (int)estimate.EstimatedDistanceMiles,
                         Seats = request.Seats,
-                        RequestUrl = $"https://lyft.mock/client_id={clientId}&action=setPickup&pickup[latitude]={request.StartPoint.Latitude}&pickup[longitude]={request.StartPoint.Longitude}&dropoff[latitude]={request.EndPoint.Latitude}&dropoff[longitude]={request.EndPoint.Longitude}&product_id={requestInstance.ProductId}",
+                        RequestUrl = $"https://lyft.mock/client_id={clientId}&action=setPickup&pickup[latitude]={request.StartPoint.Latitude}&pickup[longitude]={request.StartPoint.Longitude}&dropoff[latitude]={request.EndPoint.Latitude}&dropoff[longitude]={request.EndPoint.Longitude}&product_id={service}",
                         DisplayName = estimate.DisplayName
                     };
 
