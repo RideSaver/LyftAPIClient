@@ -6,17 +6,52 @@ using LyftClient.Interface;
 using LyftClient.Internal;
 using LyftClient.Filters;
 using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.AspNetCore.DataProtection;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddMvc();
-builder.Services.AddDistributedRedisCache(options =>
+var redisConfig = new ConfigurationOptions()
 {
-    options.Configuration = "https://lyft-redis:6379";
-    options.InstanceName = "";
+    EndPoints = { { "lyft-redis", 6379 } },
+    Password = "a-very-complex-password-here",
+    ConnectRetry = 3,
+    KeepAlive = 180,
+    SyncTimeout = 15000,
+    ConnectTimeout = 15000,
+    AbortOnConnectFail = false,
+    AllowAdmin = true,
+    Ssl = false,
+    SslProtocols = System.Security.Authentication.SslProtocols.Tls12,
+    ReconnectRetryPolicy = new ExponentialRetry(5000, 10000),
+};
+
+ConnectionMultiplexer CM = ConnectionMultiplexer.Connect(redisConfig);
+builder.Services.AddSingleton<IConnectionMultiplexer>(CM);
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("RedisCache");
+    options.InstanceName = "Redis_";
+    options.ConfigurationOptions = redisConfig;
+    options.ConfigurationOptions.TrustIssuer("/redis/ca.crt");
+    options.ConfigurationOptions.CertificateSelection += delegate
+    {
+        var redisCert = new X509Certificate2(Path.Combine("/redis/ca.crt"), "");
+        return redisCert;
+    };
+
+    options.ConnectionMultiplexerFactory = () =>
+    {
+        IConnectionMultiplexer connection = ConnectionMultiplexer.Connect(options.ConfigurationOptions);
+        return Task.FromResult(connection);
+    };
 });
 
+builder.Services.AddDataProtection().SetApplicationName("LyftClient").PersistKeysToStackExchangeRedis(ConnectionMultiplexer.Connect(redisConfig), "DataProtection-Keys");
+
+
+builder.Services.AddMvc();
 builder.Services.AddGrpc();
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpClient();
