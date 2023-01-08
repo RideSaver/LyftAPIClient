@@ -134,7 +134,7 @@ namespace LyftClient.Services
 
             ServiceLinker.ServiceIDs.TryGetValue(estimateResponseId.ToUpper(), out string? serviceName);
 
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, serviceID!) };
+            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, estimateResponseId!) };
     
             _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimateRefresh] Requesting data from the MockAPI...");
 
@@ -154,7 +154,7 @@ namespace LyftClient.Services
                 },
                 Distance = (int)estimateResponse.CostEstimates[0].EstimatedDistanceMiles,
                 Seats = estimateInstance.Seats,
-                RequestUrl = $"https://lyft.mock/client_id={clientId}&action=setPickup&pickup[latitude]={estimateInstance.StartPoint.Latitude}&pickup[longitude]={estimateInstance.StartPoint.Longitude}&dropoff[latitude]={estimateInstance.EndPoint.Latitude}&dropoff[longitude]={estimateInstance.EndPoint.Longitude}&product_id={serviceID}",
+                RequestUrl = $"https://lyft.mock/client_id={clientId}&action=setPickup&pickup[latitude]={estimateInstance.StartPoint.Latitude}&pickup[longitude]={estimateInstance.StartPoint.Longitude}&dropoff[latitude]={estimateInstance.EndPoint.Latitude}&dropoff[longitude]={estimateInstance.EndPoint.Longitude}&product_id={estimateResponseId}",
                 DisplayName = estimateResponse.CostEstimates[0].DisplayName,
                 WayPoints = { { estimateInstance.StartPoint }, { estimateInstance.EndPoint }, }
             };
