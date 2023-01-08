@@ -37,7 +37,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.ConfigurationOptions.TrustIssuer("/redis/ca.crt");
     options.ConfigurationOptions.CertificateSelection += delegate
     {
-        var redisCert = new X509Certificate2(Path.Combine("/certs/tls.pfx"), Path.Combine("/certs/tls.key"));
+        var redisCert = new X509Certificate2(Path.Combine("/certs/certificate.pfx"), Path.Combine("/certs/tls.key"));
         return redisCert;
     };
 
