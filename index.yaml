@@ -3,6 +3,16 @@ entries:
   LyftClient:
   - apiVersion: v2
     appVersion: 1.1.9
+    created: "2023-01-10T09:36:34.568132998Z"
+    description: A Helm chart for Kubernetes
+    digest: 5bc3d3fca38a3276b7bafbbf7e8a4508721029e44b3ba4016dd198e29f06b859
+    name: LyftClient
+    type: application
+    urls:
+    - https://github.com/RideSaver/LyftAPI_Client/releases/download/LyftClient-0.1.6/LyftClient-0.1.6.tgz
+    version: 0.1.6
+  - apiVersion: v2
+    appVersion: 1.1.9
     created: "2023-01-08T09:36:30.148566988Z"
     description: A Helm chart for Kubernetes
     digest: 34fbb068d1e3a6c155e545da482626c1bf101e99f786a52d9f75bf8fb2c67663
@@ -61,4 +71,4 @@ entries:
     urls:
     - https://github.com/RideSaver/LyftAPI_Client/releases/download/LyftClient-0.1.0/LyftClient-0.1.0.tgz
     version: 0.1.0
-generated: "2023-01-08T09:36:30.148591588Z"
+generated: "2023-01-10T09:36:34.568152799Z"
