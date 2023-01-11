@@ -43,22 +43,24 @@ namespace LyftClient.Services
 
             if (cacheEstimate is null) { throw new ArgumentNullException("[LyftClient::RequestsService::PostRideRequest] CacheEstimate instance is null!"); }
 
-            PassengerDetail passengerDetails = new PassengerDetail
+            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
+
+            var rideRequest = new CreateRideRequest
             {
-                FirstName = "PlaceHolder",
-                ImageUrl = "Exempt",
-                Rating = "Exempt"
+                CostToken = "UserCostTokenPerRide",
+                RideType = RideTypeFromServiceID(serviceID),
+                Origin = ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
+                Destination = ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint),
+                Passenger = new PassengerDetail
+                {
+                    FirstName = "PlaceHolder",
+                    ImageUrl = "Exempt",
+                    Rating = "Exempt"
+                },
             };
-
-            var rideCostToken = "rideCostToken";
-
-            var rideRequest = new CreateRideRequest(costToken: rideCostToken, RideTypeFromServiceID(serviceID), ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
-                ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint),passenger: passengerDetails);
-
+           
             _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Sending (CreateRideRequest) to the MockAPI... \n{rideRequest}");
 
-            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
-    
             var rideResponseInstance = await _apiClient.RidesPostAsync(createRideRequest: rideRequest);
 
             _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Received (Ride) from the MockAPI... \n{rideResponseInstance}");
