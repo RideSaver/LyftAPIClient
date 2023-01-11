@@ -8,6 +8,7 @@ using LyftClient.Interface;
 using LyftClient.Extensions;
 
 using PublicApi = LyftAPI.Client.Api.PublicApi;
+using APIConfig = LyftAPI.Client.Client.Configuration;
 
 namespace LyftClient.Services
 {
@@ -33,7 +34,7 @@ namespace LyftClient.Services
             _logger = logger;
             _cache = cache;
             _apiClient = new PublicApi();
-        }
+        } 
 
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
@@ -60,17 +61,8 @@ namespace LyftClient.Services
                 ServiceLinker.ServiceIDs.TryGetValue(service.ToUpper(), out string? serviceName);
                 if (serviceName is null) continue;
 
-                if(_accessToken is null)
-                {
-                    _logger.LogError("[LyftClient::EstimatesService::GetEstimates] AccessToken is NULL.");
-                    continue;
-                }
-
-                _apiClient.Configuration = new LyftAPI.Client.Client.Configuration // Get estimate with parameters
-                {
-                    AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, service!)
-                };
-
+                _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, service!) };
+   
                 _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimates] Requesting data from the MockAPI...");
 
                 var estimateResponse = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
@@ -127,14 +119,14 @@ namespace LyftClient.Services
 
             var estimateCache = await _cache.GetAsync<EstimateCache>(request.EstimateId.ToString());
 
-            if(estimateCache is null) { _logger.LogError($"[LyftClient::EstimatesService::GetEstimateRefresh] Failed to get (EstimateCache) from cache"); }
+            if(estimateCache is null) { throw new ArgumentNullException("[LyftClient::EstimatesService::GetEstimateRefresh] EstimateCache is null"); }
 
             var estimateInstance = estimateCache!.GetEstimatesRequest;
             var estimateResponseId = estimateCache.ProductId.ToString();
 
             ServiceLinker.ServiceIDs.TryGetValue(estimateResponseId.ToUpper(), out string? serviceName);
 
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, estimateResponseId!) };
+            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, estimateResponseId!) };
 
             _logger.LogInformation($"[LyftClient::EstimatesService::GetEstimateRefresh] Requesting data from the MockAPI...");
 

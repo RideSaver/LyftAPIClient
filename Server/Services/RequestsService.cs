@@ -41,9 +41,15 @@ namespace LyftClient.Services
             var cacheEstimate = await _cache.GetAsync<EstimateCache>(estimateId);
             var serviceID = cacheEstimate!.ProductId.ToString();
 
-            if (cacheEstimate is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] CacheEstimate instance is null!"); }
+            if (cacheEstimate is null) { throw new ArgumentNullException("[LyftClient::RequestsService::PostRideRequest] CacheEstimate instance is null!"); }
 
-            PassengerDetail passengerDetails = new(firstName: "PlaceHolder", imageUrl: "Exempt", rating: "Exempt");
+            PassengerDetail passengerDetails = new PassengerDetail
+            {
+                FirstName = "PlaceHolder",
+                ImageUrl = "Exempt",
+                Rating = "Exempt"
+            };
+
             var rideCostToken = "rideCostToken";
 
             var rideRequest = new CreateRideRequest(costToken: rideCostToken, RideTypeFromServiceID(serviceID), ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
@@ -57,13 +63,13 @@ namespace LyftClient.Services
 
             _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Received (Ride) from the MockAPI... \n{rideResponseInstance}");
 
-            if (rideResponseInstance is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] Ride Instance is null!"); }
+            if (rideResponseInstance is null) { throw new ArgumentNullException("[LyftClient::RequestsService::PostRideRequest] Ride Instance is null!"); }
 
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
  
             var rideDetailsResponseInstance = await _apiClient.RidesIdGetAsync(rideResponseInstance!.RideId.ToString());
 
-            if(rideDetailsResponseInstance is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] Ride Details Instance is null!"); }
+            if(rideDetailsResponseInstance is null) { throw new ArgumentNullException("[LyftClient::RequestsService::PostRideRequest] Ride Details Instance is null!"); }
 
             var requestCache = new EstimateCache
             {
