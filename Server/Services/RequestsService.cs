@@ -75,10 +75,10 @@ namespace LyftClient.Services
                 GetEstimatesRequest = cacheEstimate.GetEstimatesRequest,
                 Cost = cacheEstimate.Cost,
                 ProductId = Guid.Parse(serviceID),
-                RequestId = Guid.Parse(rideDetailsResponseInstance!.RideId),
+                RequestId = Guid.Parse(rideResponseInstance!.RideId),
             };
             
-            await _cache.SetAsync(rideDetailsResponseInstance.RideId, requestCache);
+            await _cache.SetAsync(rideResponseInstance.RideId.ToString(), requestCache);
 
             var rideModel = new RideModel
             {
