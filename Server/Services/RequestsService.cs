@@ -85,7 +85,7 @@ namespace LyftClient.Services
                 RideId = rideResponseInstance!.RideId.ToString(),
                 RiderOnBoard = false,
                 EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(rideDetailsResponseInstance.Pickup.Time.DateTime),
-                RideStage = StagefromStatus(rideDetailsResponseInstance.Status),
+                RideStage = Stage.Pending,
                 Price = new CurrencyModel
                 {
                     Price = (double)rideDetailsResponseInstance.Price.Amount / 100,
@@ -95,7 +95,7 @@ namespace LyftClient.Services
                 {
                     DisplayName = rideDetailsResponseInstance.Driver.FirstName,
                     LicensePlate = rideDetailsResponseInstance.Vehicle.LicensePlate,
-                    CarPicture = rideDetailsResponseInstance.Vehicle.ImageUrl,
+                    CarPicture = "Exempt",
                     CarDescription = rideDetailsResponseInstance.Vehicle.Model,
                     DriverPronounciation = rideDetailsResponseInstance.Driver.FirstName,
                 },
