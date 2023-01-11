@@ -183,9 +183,6 @@ paths:
         endpoint, so we extract the user ID from the access token.
       tags:
         - User
-      security:
-        - User_Authentication:
-            - profile
       responses:
         "200":
           description: User ID was found and returned
@@ -198,9 +195,6 @@ paths:
       summary: List rides
       description: |
         Get a list of past & current rides for this passenger.
-      security:
-        - User_Authentication:
-            - rides.read
       parameters:
         - $ref: "#/components/parameters/StartTime"
         - $ref: "#/components/parameters/OptionalEndTime"
@@ -231,9 +225,6 @@ paths:
       summary: Request a Lyft
       description: |
         Request a Lyft come pick you up at the given location.
-      security:
-        - User_Authentication:
-            - rides.request
       requestBody:
         content:
           application/json:
@@ -295,9 +286,6 @@ paths:
       description: >
         Get the status of a ride along with information about the driver,
         vehicle and price of a given ride ID
-      security:
-        - User_Authentication:
-            - rides.read
       parameters:
         - name: id
           in: path
@@ -335,9 +323,6 @@ paths:
       description: >
         Cancel a ongoing ride which was requested earlier by providing the ride
         id.
-      security:
-        - User_Authentication:
-            - rides.request
       parameters:
         - name: id
           in: path
@@ -390,9 +375,6 @@ paths:
         id. Receipts will only be available to view once the payment has been
         processed. In the case of canceled ride, cancellation penalty is
         included if applicable.
-      security:
-        - User_Authentication:
-            - rides.read
       parameters:
         - name: id
           in: path
@@ -432,9 +414,6 @@ paths:
         of drop off. For purposes of display, 5 is considered the default
         rating. When this endpoint is successfully called, payment processing
         will begin.
-      security:
-        - User_Authentication:
-            - rides.request
       parameters:
         - name: id
           in: path
@@ -481,9 +460,6 @@ paths:
         Add or update the ride's destination. Note that the ride must still be
         active (not droppedOff or canceled), and that destinations on Lyft Line
         rides can not be changed.
-      security:
-        - User_Authentication:
-            - rides.request
       parameters:
         - name: id
           in: path
@@ -567,9 +543,6 @@ paths:
       summary: Propagate ride through states
       description: |
         Propagate a sandbox-ride through various states
-      security:
-        - User_Authentication:
-            - rides.request
       parameters:
         - name: id
           in: path
@@ -659,11 +632,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-security:
-  - Client_Authentication:
-      - public
-  - User_Authentication:
-      - public
 tags:
   - name: Public
     description: Endpoints that do not require a user
@@ -747,28 +715,6 @@ components:
           - lyft_line
           - lyft_plus
           - lyft_suv
-  securitySchemes:
-    Client_Authentication:
-      description: OAuth 2.0 - Application Only Credentials
-      type: oauth2
-      flows:
-        clientCredentials:
-          tokenUrl: https://api.lyft.com/oauth/token
-          scopes:
-            public: Access public information such as ETAs and cost estimates
-    User_Authentication:
-      description: OAuth 2.0 - User Credentials
-      type: oauth2
-      flows:
-        authorizationCode:
-          authorizationUrl: https://api.lyft.com/oauth/authorize
-          tokenUrl: https://api.lyft.com/oauth/token
-          scopes:
-            public: Access public information such as ETAs and cost estimates
-            rides.read: Access information about the user's current and past rides
-            rides.request: |
-              Request a ride for the user. Cancel an existing request.
-            profile: Access profile information about the user
   schemas:
     RideTypeEnum:
       type: string
