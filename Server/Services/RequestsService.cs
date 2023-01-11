@@ -32,7 +32,7 @@ namespace LyftClient.Services
             _accessToken = accessToken;
             _logger = logger;
             _cache = cache;
-            _apiClient = new UserAPI(_httpClient, new APIConfig{});
+            _apiClient = new UserAPI();
             _httpContextAccessor = httpContextAccessor;
         }
         public override async Task<RideModel> PostRideRequest(PostRideRequestModel request, ServerCallContext context)

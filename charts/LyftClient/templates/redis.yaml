@@ -3,7 +3,7 @@ kind: StatefulSet
 metadata:
   name: {{ include "LyftClient.fullname" . }}-redis
   labels:
-    {{ include "LyftClient.selectorLabels" . | nindent 6 }}
+    {{ include "LyftClient.selectorLabels" . | nindent 4 }}
     app: redis
 spec:
   serviceName: {{ include "LyftClient.fullname" . }}-redis
@@ -15,7 +15,7 @@ spec:
   template:
     metadata:
       labels:
-        {{ include "LyftClient.selectorLabels" . | nindent 6 }}
+        {{ include "LyftClient.selectorLabels" . | nindent 8 }}
         app: redis
     spec:
       initContainers:
@@ -71,7 +71,17 @@ spec:
               mountPath: /certs
           {{ with .Values.redis.resources }}
           resources:
-            {{ . | toYaml | nindent 12 }}
+            {{ with .requests }}
+            requests:
+              {{ omit . "storage" | toYaml | nindent 14 }}
+            {{- end -}}
+            {{ with .limits }}
+            limits:
+              {{ omit . "storage" | toYaml | nindent 14 }}
+            {{- end -}}
+            {{ if omit . "requests" "limits" }}
+            {{ omit . "requests" "limits" | toYaml "omitempty" | nindent 12 }}
+            {{ end }}
           {{ end }}
       volumes:
         - name: node-config
