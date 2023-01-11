@@ -75,9 +75,7 @@ namespace LyftClient.Services
                 GetEstimatesRequest = cacheEstimate.GetEstimatesRequest,
                 Cost = cacheEstimate.Cost,
                 ProductId = Guid.Parse(serviceID),
-                CancelationCost = cacheEstimate.CancelationCost,
                 RequestId = Guid.Parse(rideDetailsResponseInstance!.RideId),
-                CancelationToken= cacheEstimate.CancelationToken,
             };
             
             await _cache.SetAsync(rideDetailsResponseInstance.RideId, requestCache);
