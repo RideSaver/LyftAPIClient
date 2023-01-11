@@ -43,14 +43,18 @@ namespace LyftClient.Services
 
             if (cacheEstimate is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] CacheEstimate instance is null!"); }
 
-            var rideRequest = new CreateRideRequest("Exempt", RideTypeFromServiceID(serviceID), ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
-                ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint), new PassengerDetail("FirstName", "ImageURL", "Rating"));
+            var rideRequest = new CreateRideRequest(costToken: "Exempt", RideTypeFromServiceID(serviceID), ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
+                ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint),passenger: new PassengerDetail(firstName:"FirstName",imageUrl:"ImageURL",rating:"Rating"));
+
+            _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Sending (CreateRideRequest) to the MockAPI... \n{rideRequest}");
 
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
     
             var rideResponseInstance = await _apiClient.RidesPostAsync(rideRequest);
 
-            if(rideResponseInstance is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] Ride Instance is null!"); }
+            _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Received (Ride) from the MockAPI... \n{rideResponseInstance}");
+
+            if (rideResponseInstance is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] Ride Instance is null!"); }
 
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
  
