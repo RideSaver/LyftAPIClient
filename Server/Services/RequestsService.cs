@@ -1,16 +1,16 @@
-using Grpc.Core;
 using InternalAPI;
-using Microsoft.Extensions.Caching.Distributed;
+using Grpc.Core;
 using LyftApiClient.Server.Models;
 using LyftApiClient.Server.Extensions;
 using LyftClient.Interface;
+using LyftAPI.Client.Model;
+using LyftClient.Extensions;
+using Microsoft.Extensions.Caching.Distributed;
 
 using UserAPI = LyftAPI.Client.Api.UserApi;
 using APIConfig = LyftAPI.Client.Client.Configuration;
 using CreateRideRequest = LyftAPI.Client.Model.CreateRideRequest;
-using LyftAPI.Client.Model;
-using LyftClient.Extensions;
-using Google.Protobuf.Collections;
+
 
 namespace LyftClient.Services
 {
@@ -18,22 +18,19 @@ namespace LyftClient.Services
     {
         private readonly ILogger<RequestsService> _logger;
         private readonly IAccessTokenService _accessToken;
-        private readonly IHttpClientFactory _clientFactory;
         private readonly IDistributedCache _cache;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        private readonly HttpClient _httpClient;
         private readonly UserAPI _apiClient;
 
-        public RequestsService(ILogger<RequestsService> logger, IDistributedCache cache, IHttpClientFactory clientFactory, IAccessTokenService accessToken, IHttpContextAccessor httpContextAccessor)
+        public RequestsService(ILogger<RequestsService> logger, IDistributedCache cache, IAccessTokenService accessToken, IHttpContextAccessor httpContextAccessor)
         {
-            _clientFactory = clientFactory;
-            _httpClient = _clientFactory.CreateClient();
             _accessToken = accessToken;
             _logger = logger;
             _cache = cache;
-            _apiClient = new UserAPI();
             _httpContextAccessor = httpContextAccessor;
+
+            _apiClient = new UserAPI();
         }
         public override async Task<RideModel> PostRideRequest(PostRideRequestModel request, ServerCallContext context)
         {
@@ -46,14 +43,8 @@ namespace LyftClient.Services
 
             if (cacheEstimate is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] CacheEstimate instance is null!"); }
 
-            CreateRideRequest rideRequest = new()
-            {
-                RideType = RideTypeFromServiceID(serviceID),
-                CostToken = "Exempt",
-                Origin = ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
-                Destination = ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint),
-                Passenger = new PassengerDetail("FirstName", "IamgeUL", "Rating")
-            };
+            var rideRequest = new CreateRideRequest("Exempt", RideTypeFromServiceID(serviceID), ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
+                ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint), new PassengerDetail("FirstName", "ImageURL", "Rating"));
 
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
     
@@ -125,7 +116,7 @@ namespace LyftClient.Services
             {
                 RideId = request.RideId,
                 EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(ride.Pickup.Time.DateTime),
-                RiderOnBoard = ride.Status == LyftAPI.Client.Model.RideStatusEnum.PickedUp,
+                RiderOnBoard = ride.Status == RideStatusEnum.PickedUp,
                 Price = new CurrencyModel
                 {
                     Price = (double)ride.Price.Amount / 100,
@@ -156,10 +147,7 @@ namespace LyftClient.Services
 
             var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
 
-            _apiClient.Configuration = new LyftAPI.Client.Client.Configuration
-            {
-                AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, CacheEstimate.ProductId.ToString())
-            };
+            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, CacheEstimate.ProductId.ToString()) };
 
             await _apiClient.RidesIdCancelPostAsync(CacheEstimate.CancelationToken.ToString());
             return CacheEstimate.CancelationCost;
@@ -169,12 +157,12 @@ namespace LyftClient.Services
         {
             switch (status)
             {
-                case LyftAPI.Client.Model.RideStatusEnum.Pending: return Stage.Pending;
-                case LyftAPI.Client.Model.RideStatusEnum.Arrived: return Stage.Accepted;
-                case LyftAPI.Client.Model.RideStatusEnum.PickedUp: return Stage.Accepted;
-                case LyftAPI.Client.Model.RideStatusEnum.Accepted: return Stage.Accepted;
-                case LyftAPI.Client.Model.RideStatusEnum.Canceled: return Stage.Cancelled;
-                case LyftAPI.Client.Model.RideStatusEnum.DroppedOff: return Stage.Completed;
+                case RideStatusEnum.Pending: return Stage.Pending;
+                case RideStatusEnum.Arrived: return Stage.Accepted;
+                case RideStatusEnum.PickedUp: return Stage.Accepted;
+                case RideStatusEnum.Accepted: return Stage.Accepted;
+                case RideStatusEnum.Canceled: return Stage.Cancelled;
+                case RideStatusEnum.DroppedOff: return Stage.Completed;
                 default: return Stage.Unknown;
             }
         }
