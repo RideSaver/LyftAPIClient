@@ -64,7 +64,7 @@ namespace LyftClient.Services
 
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID)  };
 
-            LyftClient.Models.RideDetail rideDetailsResponseInstance = await _apiClient.RidesIdGetAsync(rideResponseInstance!.RideId.ToString());
+            var rideDetailsResponseInstance = await _apiClient.RidesIdGetAsync(rideResponseInstance!.RideId.ToString());
 
             _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Received (RideDetails) from the MockAPI... \n{rideDetailsResponseInstance}");
 
@@ -84,7 +84,7 @@ namespace LyftClient.Services
             {
                 RideId = rideResponseInstance!.RideId.ToString(),
                 RiderOnBoard = false,
-                EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(rideDetailsResponseInstance.Pickup.Time.DateTime),
+                EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime((rideDetailsResponseInstance!.Pickup.Time.DateTime).ToUniversalTime()),
                 RideStage = Stage.Pending,
                 Price = new CurrencyModel
                 {
