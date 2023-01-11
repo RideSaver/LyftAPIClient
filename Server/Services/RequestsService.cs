@@ -43,14 +43,17 @@ namespace LyftClient.Services
 
             if (cacheEstimate is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] CacheEstimate instance is null!"); }
 
-            var rideRequest = new CreateRideRequest(costToken: "Exempt", RideTypeFromServiceID(serviceID), ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
-                ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint),passenger: new PassengerDetail(firstName:"FirstName",imageUrl:"ImageURL",rating:"Rating"));
+            var passengerDetails = new PassengerDetail { FirstName = "UserFirstName", ImageUrl = "Exempt", Rating = "Exempt" };
+            var rideCostToken = "rideCostToken";
+
+            var rideRequest = new CreateRideRequest(costToken: rideCostToken, RideTypeFromServiceID(serviceID), ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
+                ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint),passenger: passengerDetails);
 
             _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Sending (CreateRideRequest) to the MockAPI... \n{rideRequest}");
 
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
     
-            var rideResponseInstance = await _apiClient.RidesPostAsync(rideRequest);
+            var rideResponseInstance = await _apiClient.RidesPostAsync(createRideRequest: rideRequest);
 
             _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Received (Ride) from the MockAPI... \n{rideResponseInstance}");
 
@@ -77,8 +80,9 @@ namespace LyftClient.Services
             var rideModel = new RideModel()
             {
                 RideId = rideDetailsResponseInstance!.RideId.ToString(),
-                EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(rideDetailsResponseInstance.Pickup.Time.DateTime),
                 RiderOnBoard = false,
+                EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(rideDetailsResponseInstance.Pickup.Time.DateTime),
+                RideStage = StagefromStatus(rideDetailsResponseInstance.Status),
                 Price = new CurrencyModel
                 {
                     Price = (double)rideDetailsResponseInstance.Price.Amount / 100,
@@ -92,7 +96,6 @@ namespace LyftClient.Services
                     CarDescription = rideDetailsResponseInstance.Vehicle.Model,
                     DriverPronounciation = rideDetailsResponseInstance.Driver.FirstName,
                 },
-                RideStage = StagefromStatus(rideDetailsResponseInstance.Status),
                 DriverLocation = new LocationModel
                 {
                     Latitude = rideDetailsResponseInstance.Location.Lat,
