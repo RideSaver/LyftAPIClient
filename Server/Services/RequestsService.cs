@@ -81,7 +81,7 @@ namespace LyftClient.Services
 
             var rideModel = new RideModel
             {
-                RideId = rideDetailsResponseInstance!.RideId.ToString(),
+                RideId = rideResponseInstance!.RideId.ToString(),
                 RiderOnBoard = false,
                 EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(rideDetailsResponseInstance.Pickup.Time.DateTime),
                 RideStage = StagefromStatus(rideDetailsResponseInstance.Status),
