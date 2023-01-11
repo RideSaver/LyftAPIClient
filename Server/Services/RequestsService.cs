@@ -45,18 +45,12 @@ namespace LyftClient.Services
 
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
 
-            var rideRequest = new CreateRideRequest
+            var rideRequest = new CreateRideRequest(costToken: "UserCostTokenPerRide")
             {
-                CostToken = "UserCostTokenPerRide",
                 RideType = RideTypeFromServiceID(serviceID),
                 Origin = ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
                 Destination = ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint),
-                Passenger = new PassengerDetail
-                {
-                    FirstName = "PlaceHolder",
-                    ImageUrl = "Exempt",
-                    Rating = "Exempt"
-                },
+                Passenger = new PassengerDetail(firstName: "PlaceHolder", imageUrl: "Exempt", rating: "Exempt")
             };
            
             _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Sending (CreateRideRequest) to the MockAPI... \n{rideRequest}");
