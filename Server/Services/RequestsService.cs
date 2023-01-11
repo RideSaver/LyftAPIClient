@@ -43,7 +43,7 @@ namespace LyftClient.Services
 
             if (cacheEstimate is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] CacheEstimate instance is null!"); }
 
-            var passengerDetails = new PassengerDetail { FirstName = "UserFirstName", ImageUrl = "Exempt", Rating = "Exempt" };
+            PassengerDetail passengerDetails = new(firstName: "PlaceHolder", imageUrl: "Exempt", rating: "Exempt");
             var rideCostToken = "rideCostToken";
 
             var rideRequest = new CreateRideRequest(costToken: rideCostToken, RideTypeFromServiceID(serviceID), ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
@@ -77,7 +77,7 @@ namespace LyftClient.Services
             
             await _cache.SetAsync(rideDetailsResponseInstance.RideId, requestCache);
 
-            var rideModel = new RideModel()
+            var rideModel = new RideModel
             {
                 RideId = rideDetailsResponseInstance!.RideId.ToString(),
                 RiderOnBoard = false,
