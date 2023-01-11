@@ -38,7 +38,8 @@ Task("Generate:OpenAPI")
     OpenApiGenerator.Generate("LyftAPIClient/openapi.yaml", generator, $"{output_dir}", new OpenApiGenerateSettings()
     {
         ConfigurationFile = "LyftAPIClient/openapi-codegen.json",
-        PackageName = packageName
+        PackageName = packageName,
+        TemplateDirectory = "./LyftAPIClient/template",
     });
 });
 
