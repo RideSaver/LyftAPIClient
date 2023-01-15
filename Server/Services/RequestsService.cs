@@ -44,7 +44,6 @@ namespace LyftClient.Services
             // Retrieve the Estimate instance stored in the cache.
             var cacheEstimate = await _cache.GetAsync<EstimateCache>(estimateId);
             if (cacheEstimate is null) { throw new ArgumentNullException(nameof(cacheEstimate)); }
-
             var serviceID = cacheEstimate!.ProductId.ToString();
 
             // Retrieve the user access token from IdentityService for the current user.
@@ -182,8 +181,14 @@ namespace LyftClient.Services
             // Retrieve the user-access-token from IdentityService for the current user.
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
 
+            // CancellationToken instance for the CancelRide request.
+            var cancellationToken = new CancellationRequest
+            {
+                CancelConfirmationToken = Guid.NewGuid().ToString()
+            };
+
             // Make the Delete request to the MockAPI
-            await _apiClient.RidesIdCancelPostAsync(requestID);
+            await _apiClient.RidesIdCancelPostAsync(requestID, cancellationToken);
 
             // Return the cancellation-fee price breakdown saved in the cache.
             if (cacheEstimate.CancelationCost is null) { throw new ArgumentNullException(nameof(cacheEstimate.CancelationCost)); }
