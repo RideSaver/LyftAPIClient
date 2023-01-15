@@ -34,24 +34,32 @@ namespace LyftClient.Services
 
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
         {
-            string clientId = "al0I63Gjwk3Wsmhq_EL8_HxB8qWlO7yY"; // Mimick the clientID recieved from the MockAPI
+            // ClientID recieved from the MockAPIs for authentication.
+            string clientId = "al0I63Gjwk3Wsmhq_EL8_HxB8qWlO7yY";
 
-            var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"]; // Extract the JWT token from the request headers.
+            // Extract the JWT token from the request headers for the current-user.
+            var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"]; 
             if(SessionToken is null) { throw new ArgumentNullException(nameof(SessionToken)); }
 
-            DistributedCacheEntryOptions options = new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24), SlidingExpiration = TimeSpan.FromHours(5) };
+            // Configure the redis-cache options.
+            var redisOptions = new DistributedCacheEntryOptions() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24), SlidingExpiration = TimeSpan.FromHours(5) };
 
             // Iterate through the list of serviceIDs recieved in the request
             var servicesList = request.Services.ToList();
             foreach (var service in servicesList)
             {
+                // Attempt to match the serviceID to a service name through the ServiceLinker.
                 ServiceLinker.ServiceIDs.TryGetValue(service.ToUpper(), out string? serviceName);
                 if (serviceName is null) continue;
 
+                // Retrieve the user-access-token for from IdentityService for the current-user.
                 _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, service!) };
-   
+
+                // Request the EstimateInfo from the MockAPI.
                 var estimateResponse = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
                 if(estimateResponse is null) { throw new ArgumentNullException(nameof(estimateResponse)); }
+
+                // Generate the internal serviceID for the current estimate request.
                 var estimateID = DataAccess.Services.ServiceID.CreateServiceID(service).ToString();
 
                 // Iterate through the list of estimates recieved from the MockAPI
@@ -82,7 +90,8 @@ namespace LyftClient.Services
                         ProductId = Guid.Parse(service) // ServiceID 
                     };
 
-                    await _cache.SetAsync(estimateID, estimateCache, options);
+                    // Save the current Estimate instance to the cache & return the estimate-info to EstimatesAPI.
+                    await _cache.SetAsync(estimateID, estimateCache, redisOptions);
                     await responseStream.WriteAsync(estimateModel);
                     await Task.Delay(TimeSpan.FromSeconds(1));
                 }
@@ -91,24 +100,35 @@ namespace LyftClient.Services
 
         public override async Task<EstimateModel> GetEstimateRefresh(GetEstimateRefreshRequest request, ServerCallContext context)
         {
+            // ClientID recieved from the MockAPIs for authentication.
             string clientId = "al0I63Gjwk3Wsmhq_EL8_HxB8qWlO7yY";
 
+            // Extract the JWT token from the request headers for the current-user.
             var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
             if (SessionToken is null) { throw new ArgumentNullException(nameof(SessionToken)); }
 
-            var estimateCache = await _cache.GetAsync<EstimateCache>(request.EstimateId.ToString()); // Extract the EstimateInstance from the cache
+            // Get the EstimateID used as key for storage within the cache.
+            var estimateID = request.EstimateId.ToString();
+            if (estimateID is null) { throw new ArgumentNullException(nameof(estimateID)); }
+
+            // Extract the EstimateInstance from the cache.
+            var estimateCache = await _cache.GetAsync<EstimateCache>(estimateID); // Extract the EstimateInstance from the cache
             if(estimateCache is null) { throw new ArgumentNullException(nameof(estimateCache)); }
 
             var estimateInstance = estimateCache!.GetEstimatesRequest;  // Estimate Instance
-            var estimateID = request.EstimateId.ToString(); // EstimateInstance Generated Service ID
-            var serviceID = estimateCache.ProductId.ToString(); // RideType Service ID
+            var serviceID = estimateCache.ProductId.ToString(); // Service ID
 
+            // Match the current serviceID with a valid Service name through the service linker.
             ServiceLinker.ServiceIDs.TryGetValue(serviceID.ToUpper(), out string? serviceName);
             if(serviceName is null) { throw new ArgumentNullException(nameof(serviceName)); }
 
-            DistributedCacheEntryOptions options = new() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24), SlidingExpiration = TimeSpan.FromHours(5) };
+            // Configure the redis-cache options.
+            var redisOptions = new DistributedCacheEntryOptions() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24), SlidingExpiration = TimeSpan.FromHours(5) };
+
+            // Retrieve the user-access-token from IdentityService for the current user.
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, serviceID) };
 
+            // Make the EstimateRefresh request from the MockAPI.
             var estimateResponse = await _apiClient.EstimateAsync(estimateInstance!.StartPoint.Latitude, estimateInstance.StartPoint.Longitude, serviceName, estimateInstance.EndPoint.Latitude, estimateInstance.EndPoint.Longitude);
             if (estimateResponse is null) { throw new ArgumentNullException(nameof(estimateResponse)); }
 
@@ -133,12 +153,13 @@ namespace LyftClient.Services
             // Save the EstimateInstance back into the cache.
             var cacheInstance = new EstimateCache()
             {
-                Cost = new Cost((int)estimateModel.PriceDetails.Price, estimateModel.PriceDetails.Currency.ToString(), "RideEstimate Cost Breakdown"),
+                Cost = new Cost((int)estimateModel.PriceDetails.Price, estimateModel.PriceDetails.Currency.ToString(), "ETA Cost Breakdown"),
                 GetEstimatesRequest = estimateInstance,
                 ProductId = Guid.Parse(serviceID)
             };
 
-            await _cache.SetAsync(estimateID, cacheInstance, options);
+            // Save the EstimateInstance back into the cache & return the estimate to EstimatesAPI.
+            await _cache.SetAsync(estimateID, cacheInstance, redisOptions);
             return estimateModel;
         }
     }
