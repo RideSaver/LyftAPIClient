@@ -1,17 +1,15 @@
-using InternalAPI;
 using Grpc.Core;
+using InternalAPI;
+using LyftAPI.Client.Model;
+using LyftClient.Interface;
+using LyftClient.Extensions;
 using LyftApiClient.Server.Models;
 using LyftApiClient.Server.Extensions;
-using LyftClient.Interface;
-using LyftAPI.Client.Model;
-using LyftClient.Extensions;
 using Microsoft.Extensions.Caching.Distributed;
 
 using UserAPI = LyftAPI.Client.Api.UserApi;
 using APIConfig = LyftAPI.Client.Client.Configuration;
 using CreateRideRequest = LyftAPI.Client.Model.CreateRideRequest;
-using Microsoft.Extensions.Logging;
-
 
 namespace LyftClient.Services
 {
@@ -54,38 +52,37 @@ namespace LyftClient.Services
                 Passenger = new PassengerDetail(firstName: "PlaceHolder", imageUrl: "Exempt", rating: "Exempt")
             };
            
-            _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Sending (CreateRideRequest) to the MockAPI... \n{rideRequest}");
-
             var rideResponseInstance = await _apiClient.RidesPostAsync(createRideRequest: rideRequest);
 
-            _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Received (Ride) from the MockAPI... \n{rideResponseInstance}");
-
-            if (rideResponseInstance is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] Ride Instance is null!"); }
+            if (rideResponseInstance is null) { throw new ArgumentNullException("[LyftClient::RequestsService::PostRideRequest] Ride Instance is null!"); }
 
             _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID)  };
 
             var rideDetailsResponseInstance = await _apiClient.RidesIdGetAsync(rideResponseInstance!.RideId.ToString());
 
-            _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Received (RideDetails) from the MockAPI... \n{rideDetailsResponseInstance}");
-
-            if (rideDetailsResponseInstance is null) { _logger.LogError("[LyftClient::RequestsService::PostRideRequest] Ride Details Instance is null!"); }
+            if (rideDetailsResponseInstance is null) { throw new ArgumentNullException("[LyftClient::RequestsService::PostRideRequest] Ride Details Instance is null!"); }
 
             var requestCache = new EstimateCache
             {
                 GetEstimatesRequest = cacheEstimate.GetEstimatesRequest,
                 Cost = cacheEstimate.Cost,
                 ProductId = Guid.Parse(serviceID),
-                RequestId = Guid.Parse(rideResponseInstance!.RideId),
+                RequestId = Guid.Parse(rideResponseInstance!.RideId.ToString()),
+                CancelationCost = new CurrencyModel
+                {
+                    Price = rideDetailsResponseInstance.CancellationPrice.Amount,
+                    Currency = rideDetailsResponseInstance.CancellationPrice.Currency
+                },
             };
-            
+
             await _cache.SetAsync(rideResponseInstance.RideId.ToString(), requestCache);
 
             var rideModel = new RideModel
             {
                 RideId = rideResponseInstance!.RideId.ToString(),
                 RiderOnBoard = false,
-                EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime((rideDetailsResponseInstance!.Pickup.Time.DateTime).ToUniversalTime()),
                 RideStage = Stage.Pending,
+                EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime((rideDetailsResponseInstance!.Pickup.Time.DateTime).ToUniversalTime()),
                 Price = new CurrencyModel
                 {
                     Price = (double)rideDetailsResponseInstance.Price.Amount / 100,
@@ -106,45 +103,45 @@ namespace LyftClient.Services
                 },
             };
 
-            _logger.LogInformation($"[LyftClient::RequestsService::PostRideRequest] Returning (RideModel) to caller... \n{rideModel}");
             return rideModel;
         }
 
         public override async Task<RideModel> GetRideRequest(GetRideRequestModel request, ServerCallContext context)
         {
             var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
+            var cacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId.ToString());
+            var serviceID = cacheEstimate!.ProductId.ToString();
 
-            _logger.LogInformation($"[LyftClient::RequestsService::GetRideRequest] HTTP Context session token: {SessionToken}");
+            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
+            var rideDetailsResponseInstance = await _apiClient.RidesIdGetAsync(request.RideId.ToString());
 
-            var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
+            _logger.LogInformation($"[LyftClient::RequestsService::GetRideRequest] Received (RideDetails) from the MockAPI... \n{rideDetailsResponseInstance}");
 
-            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, CacheEstimate.ProductId.ToString()), };
-
-            var ride = await _apiClient.RidesIdGetAsync(request.RideId);
+            if (rideDetailsResponseInstance is null) { throw new ArgumentNullException("[LyftClient::RequestsService::GetRideRequest] Ride Details instance is null!"); }
 
             return new RideModel
             {
-                RideId = request.RideId,
-                EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(ride.Pickup.Time.DateTime),
-                RiderOnBoard = ride.Status == RideStatusEnum.PickedUp,
+                RideId = request.RideId.ToString(),
+                RiderOnBoard = false,
+                EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime((rideDetailsResponseInstance!.Pickup.Time.DateTime).ToUniversalTime()),
+                RideStage = StagefromStatus(rideDetailsResponseInstance.Status),
                 Price = new CurrencyModel
                 {
-                    Price = (double)ride.Price.Amount / 100,
-                    Currency = ride.Price.Currency,
+                    Price = (double)rideDetailsResponseInstance.Price.Amount / 100,
+                    Currency = rideDetailsResponseInstance.Price.Currency,
                 },
                 Driver = new DriverModel
                 {
-                    DisplayName = ride.Driver.FirstName,
-                    LicensePlate = ride.Vehicle.LicensePlate,
-                    CarPicture = ride.Vehicle.ImageUrl,
-                    CarDescription = ride.Vehicle.Model,
-                    DriverPronounciation = ride.Driver.FirstName
+                    DisplayName = rideDetailsResponseInstance.Driver.FirstName,
+                    LicensePlate = rideDetailsResponseInstance.Vehicle.LicensePlate,
+                    CarPicture = rideDetailsResponseInstance.Vehicle.ImageUrl,
+                    CarDescription = rideDetailsResponseInstance.Vehicle.Model,
+                    DriverPronounciation = rideDetailsResponseInstance.Driver.FirstName
                 },
-                RideStage = StagefromStatus(ride.Status),
                 DriverLocation = new LocationModel
                 {
-                    Latitude = ride.Location.Lat,
-                    Longitude = ride.Location.Lng,
+                    Latitude = rideDetailsResponseInstance.Location.Lat,
+                    Longitude = rideDetailsResponseInstance.Location.Lng
                 },
             };
         }
@@ -152,15 +149,14 @@ namespace LyftClient.Services
         public override async Task<CurrencyModel> DeleteRideRequest(DeleteRideRequestModel request, ServerCallContext context)
         {
             var SessionToken = "" + _httpContextAccessor.HttpContext!.Request.Headers["token"];
+            var cacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId.ToString());
+            var serviceID = cacheEstimate!.ProductId.ToString();
 
-            _logger.LogInformation($"[LyftClient::RequestsService::GetRideRequest] HTTP Context User: {SessionToken}");
+            if (cacheEstimate is null) { throw new ArgumentNullException("[LyftClient::RequestsService::DeleteRideRequest] CacheEstimate instance is null!"); }
 
-            var CacheEstimate = await _cache.GetAsync<EstimateCache>(request.RideId);
-
-            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, CacheEstimate.ProductId.ToString()) };
-
-            await _apiClient.RidesIdCancelPostAsync(CacheEstimate.CancelationToken.ToString());
-            return CacheEstimate.CancelationCost;
+            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
+            await _apiClient.RidesIdCancelPostAsync(cacheEstimate.CancelationToken.ToString());
+            return cacheEstimate.CancelationCost!;
         }
 
         private static Stage StagefromStatus(RideStatusEnum? status)
