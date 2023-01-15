@@ -1,11 +1,11 @@
 using Grpc.Core;
 using InternalAPI;
-using LyftAPI.Client.Model;
-using Microsoft.Extensions.Caching.Distributed;
-using LyftApiClient.Server.Models;
-using LyftApiClient.Server.Extensions;
 using LyftClient.Interface;
 using LyftClient.Extensions;
+using LyftApiClient.Server.Models;
+using LyftApiClient.Server.Extensions;
+using LyftAPI.Client.Model;
+using Microsoft.Extensions.Caching.Distributed;
 
 using PublicApi = LyftAPI.Client.Api.PublicApi;
 using APIConfig = LyftAPI.Client.Client.Configuration;
@@ -16,7 +16,7 @@ namespace LyftClient.Services
     public class EstimatesService : Estimates.EstimatesBase
     {
         private readonly IDistributedCache _cache;
-        private readonly IAccessTokenService _accessToken;
+        private readonly IAccessTokenService _tokenService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         private readonly PublicApi _apiClient;
@@ -24,12 +24,11 @@ namespace LyftClient.Services
 
         public EstimatesService(ILogger<EstimatesService> logger, IDistributedCache cache, IAccessTokenService accessToken, IHttpContextAccessor httpContextAccessor)
         {
-            _accessToken = accessToken;
+            _apiClient = new PublicApi();
+            _tokenService = accessToken;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
             _cache = cache;
-
-            _apiClient = new PublicApi();
         } 
 
         public override async Task GetEstimates(GetEstimatesRequest request, IServerStreamWriter<EstimateModel> responseStream, ServerCallContext context)
@@ -53,21 +52,22 @@ namespace LyftClient.Services
                 if (serviceName is null) continue;
 
                 // Retrieve the user-access-token for from IdentityService for the current-user.
-                _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, service!) };
+                _apiClient.Configuration = new APIConfig { AccessToken = await _tokenService!.GetAccessTokenAsync(SessionToken!, service!) };
+                if(_apiClient.Configuration.AccessToken is null) { throw new ArgumentNullException(nameof(_apiClient.Configuration.AccessToken)); }
 
                 // Request the EstimateInfo from the MockAPI.
                 var estimateResponse = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
                 if(estimateResponse is null) { throw new ArgumentNullException(nameof(estimateResponse)); }
 
                 // Generate the internal serviceID for the current estimate request.
-                var estimateID = DataAccess.Services.ServiceID.CreateServiceID(service).ToString();
+                var internalServiceID = DataAccess.Services.ServiceID.CreateServiceID(service).ToString();
 
                 // Iterate through the list of estimates recieved from the MockAPI
                 foreach(var estimate in estimateResponse.CostEstimates)
                 {
                     var estimateModel = new EstimateModel()
                     {
-                        EstimateId = estimateID,
+                        EstimateId = internalServiceID,
                         CreatedTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime()),
                         InvalidTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.AddMinutes(5).ToUniversalTime()),
                         Distance = (int)estimate.EstimatedDistanceMiles,
@@ -91,7 +91,7 @@ namespace LyftClient.Services
                     };
 
                     // Save the current Estimate instance to the cache & return the estimate-info to EstimatesAPI.
-                    await _cache.SetAsync(estimateID, estimateCache, redisOptions);
+                    await _cache.SetAsync(internalServiceID, estimateCache, redisOptions);
                     await responseStream.WriteAsync(estimateModel);
                     await Task.Delay(TimeSpan.FromSeconds(1));
                 }
@@ -108,11 +108,11 @@ namespace LyftClient.Services
             if (SessionToken is null) { throw new ArgumentNullException(nameof(SessionToken)); }
 
             // Get the EstimateID used as key for storage within the cache.
-            var estimateID = request.EstimateId.ToString();
-            if (estimateID is null) { throw new ArgumentNullException(nameof(estimateID)); }
+            var internalServiceID = request.EstimateId.ToString();
+            if (internalServiceID is null) { throw new ArgumentNullException(nameof(internalServiceID)); }
 
             // Extract the EstimateInstance from the cache.
-            var estimateCache = await _cache.GetAsync<EstimateCache>(estimateID); // Extract the EstimateInstance from the cache
+            var estimateCache = await _cache.GetAsync<EstimateCache>(internalServiceID); // Extract the EstimateInstance from the cache
             if(estimateCache is null) { throw new ArgumentNullException(nameof(estimateCache)); }
 
             var estimateInstance = estimateCache!.GetEstimatesRequest;  // Estimate Instance
@@ -126,7 +126,8 @@ namespace LyftClient.Services
             var redisOptions = new DistributedCacheEntryOptions() { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24), SlidingExpiration = TimeSpan.FromHours(5) };
 
             // Retrieve the user-access-token from IdentityService for the current user.
-            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken!.GetAccessTokenAsync(SessionToken!, serviceID) };
+            _apiClient.Configuration = new APIConfig { AccessToken = await _tokenService!.GetAccessTokenAsync(SessionToken!, serviceID) };
+            if (_apiClient.Configuration.AccessToken is null) { throw new ArgumentNullException(nameof(_apiClient.Configuration.AccessToken)); }
 
             // Make the EstimateRefresh request from the MockAPI.
             var estimateResponse = await _apiClient.EstimateAsync(estimateInstance!.StartPoint.Latitude, estimateInstance.StartPoint.Longitude, serviceName, estimateInstance.EndPoint.Latitude, estimateInstance.EndPoint.Longitude);
@@ -135,7 +136,7 @@ namespace LyftClient.Services
             // Create an EstimateModel to be sent back to the EstimatesAPI
             var estimateModel = new EstimateModel()
             {
-                EstimateId = estimateID,
+                EstimateId = internalServiceID,
                 CreatedTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime()),
                 InvalidTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.AddMinutes(5).ToUniversalTime()),
                 Distance = (int)estimateResponse.CostEstimates[0].EstimatedDistanceMiles,
@@ -159,7 +160,7 @@ namespace LyftClient.Services
             };
 
             // Save the EstimateInstance back into the cache & return the estimate to EstimatesAPI.
-            await _cache.SetAsync(estimateID, cacheInstance, redisOptions);
+            await _cache.SetAsync(internalServiceID, cacheInstance, redisOptions);
             return estimateModel;
         }
     }

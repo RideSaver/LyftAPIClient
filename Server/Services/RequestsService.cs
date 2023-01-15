@@ -1,8 +1,8 @@
 using Grpc.Core;
 using InternalAPI;
-using LyftAPI.Client.Model;
+using LyftClient.Helper;
 using LyftClient.Interface;
-using LyftClient.Extensions;
+using LyftAPI.Client.Model;
 using LyftApiClient.Server.Models;
 using LyftApiClient.Server.Extensions;
 using Microsoft.Extensions.Caching.Distributed;
@@ -11,12 +11,13 @@ using UserAPI = LyftAPI.Client.Api.UserApi;
 using APIConfig = LyftAPI.Client.Client.Configuration;
 using CreateRideRequest = LyftAPI.Client.Model.CreateRideRequest;
 
+
 namespace LyftClient.Services
 {
     public class RequestsService : Requests.RequestsBase
     {
         private readonly ILogger<RequestsService> _logger;
-        private readonly IAccessTokenService _accessToken;
+        private readonly IAccessTokenService _tokenService;
         private readonly IDistributedCache _cache;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -24,12 +25,11 @@ namespace LyftClient.Services
 
         public RequestsService(ILogger<RequestsService> logger, IDistributedCache cache, IAccessTokenService accessToken, IHttpContextAccessor httpContextAccessor)
         {
-            _accessToken = accessToken;
+            _apiClient = new UserAPI();
+            _tokenService = accessToken;
             _logger = logger;
             _cache = cache;
-            _httpContextAccessor = httpContextAccessor;
-
-            _apiClient = new UserAPI();
+            _httpContextAccessor = httpContextAccessor;  
         }
         public override async Task<RideModel> PostRideRequest(PostRideRequestModel request, ServerCallContext context)
         {
@@ -38,24 +38,25 @@ namespace LyftClient.Services
             if(SessionToken is null) { throw new ArgumentNullException(nameof(SessionToken)); }
 
             // Retrieve the EstimateID used as key for the EstimateInstance cache.
-            var estimateId = request.EstimateId.ToString();
-            if (estimateId is null) { throw new ArgumentNullException(nameof(estimateId)); }
+            var internalServiceID = request.EstimateId.ToString();
+            if (internalServiceID is null) { throw new ArgumentNullException(nameof(internalServiceID)); }
 
             // Retrieve the Estimate instance stored in the cache.
-            var cacheEstimate = await _cache.GetAsync<EstimateCache>(estimateId);
+            var cacheEstimate = await _cache.GetAsync<EstimateCache>(internalServiceID);
             if (cacheEstimate is null) { throw new ArgumentNullException(nameof(cacheEstimate)); }
             var serviceID = cacheEstimate!.ProductId.ToString();
 
             // Retrieve the user access token from IdentityService for the current user.
-            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
+            _apiClient.Configuration = new APIConfig { AccessToken = await _tokenService.GetAccessTokenAsync(SessionToken!, serviceID) };
+            if (_apiClient.Configuration.AccessToken is null) { throw new ArgumentNullException(nameof(_apiClient.Configuration.AccessToken)); }
 
             // Create the RideRequest instance that will be sent to the MockAPI.
-            var rideRequest = new CreateRideRequest(costToken: "UserCostTokenPerRide")
+            var rideRequest = new CreateRideRequest(costToken: Guid.NewGuid().ToString())
             {
-                RideType = RideTypeFromServiceID(serviceID),
-                Origin = ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
-                Destination = ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint),
-                Passenger = new PassengerDetail(firstName: "PlaceHolder", imageUrl: "Exempt", rating: "Exempt")
+                RideType = Utility.RideTypeFromServiceID(serviceID),
+                Origin = Utility.ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.StartPoint),
+                Destination = Utility.ConvertLocationModelToLocation(cacheEstimate!.GetEstimatesRequest!.EndPoint),
+                Passenger = new PassengerDetail(firstName: "Exempt", imageUrl: "Exempt", rating: "Exempt")
             };
 
             // Make the request to the MockAPI tp post the ride request.
@@ -64,7 +65,8 @@ namespace LyftClient.Services
             var rideID = rideResponseInstance!.RideId.ToString();
 
             // Retrieve the user access token from IdentityService for the current user.
-            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID)  };
+            _apiClient.Configuration = new APIConfig { AccessToken = await _tokenService.GetAccessTokenAsync(SessionToken!, serviceID)  };
+            if (_apiClient.Configuration.AccessToken is null) { throw new ArgumentNullException(nameof(_apiClient.Configuration.AccessToken)); }
 
             // Make the request to the MockAPI to get the RideDetail.
             var rideDetailsResponseInstance = await _apiClient.RidesIdGetAsync(rideID);
@@ -77,12 +79,12 @@ namespace LyftClient.Services
                 Currency = rideDetailsResponseInstance.CancellationPrice.Currency,
                 Price = rideDetailsResponseInstance.CancellationPrice.Amount
             };
-            await _cache.SetAsync(estimateId, cacheEstimate);
+            await _cache.SetAsync(internalServiceID, cacheEstimate);
 
             // Create a new instance of RideModel to be sent back to RequestsAPI.
             return new RideModel()
             {
-                RideId = estimateId,
+                RideId = internalServiceID,
                 RiderOnBoard = false,
                 RideStage = Stage.Pending,
                 EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime((rideDetailsResponseInstance!.Pickup.Time.DateTime).ToUniversalTime()),
@@ -95,7 +97,7 @@ namespace LyftClient.Services
                 {
                     DisplayName = rideDetailsResponseInstance.Driver.FirstName,
                     LicensePlate = rideDetailsResponseInstance.Vehicle.LicensePlate,
-                    CarPicture = "Exempt",
+                    CarPicture = rideDetailsResponseInstance.Vehicle.ImageUrl,
                     CarDescription = $"{rideDetailsResponseInstance.Vehicle.Make} {rideDetailsResponseInstance.Vehicle.Model}",
                     DriverPronounciation = rideDetailsResponseInstance.Driver.FirstName,
                 },
@@ -116,17 +118,18 @@ namespace LyftClient.Services
             if (SessionToken is null) { throw new ArgumentNullException(nameof(SessionToken)); }
 
             // RideID used as the cache-instance key.
-            var estimateCacheID = request.RideId.ToString();
-            if (estimateCacheID is null) { throw new ArgumentNullException(nameof(estimateCacheID)); }
+            var internalServiceID = request.RideId.ToString();
+            if (internalServiceID is null) { throw new ArgumentNullException(nameof(internalServiceID)); }
 
             // Get the cache instance for the ride-request.
-            var cacheEstimate = await _cache.GetAsync<EstimateCache>(estimateCacheID);
+            var cacheEstimate = await _cache.GetAsync<EstimateCache>(internalServiceID);
             if (cacheEstimate is null) { throw new ArgumentNullException(nameof(cacheEstimate)); }
             var serviceID = cacheEstimate!.ProductId.ToString();
             var requestID = cacheEstimate.RequestId.ToString();
 
             // Retrieve the user-access-token from IdentityService for the current user.
-            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
+            _apiClient.Configuration = new APIConfig { AccessToken = await _tokenService.GetAccessTokenAsync(SessionToken!, serviceID) };
+            if (_apiClient.Configuration.AccessToken is null) { throw new ArgumentNullException(nameof(_apiClient.Configuration.AccessToken)); }
 
             //  Make the request to the MockAPI.
             var rideDetailsResponseInstance = await _apiClient.RidesIdGetAsync(requestID);
@@ -135,10 +138,10 @@ namespace LyftClient.Services
             // Create a new instance of RideModel to send back to RequestsAPI.
             return new RideModel
             {
-                RideId = estimateCacheID,
+                RideId = internalServiceID,
                 RiderOnBoard = false,
                 EstimatedTimeOfArrival = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime((rideDetailsResponseInstance!.Pickup.Time.DateTime).ToUniversalTime()),
-                RideStage = StagefromStatus(rideDetailsResponseInstance.Status),
+                RideStage = Utility.StagefromStatus(rideDetailsResponseInstance.Status),
                 Price = new CurrencyModel
                 {
                     Price = (double)rideDetailsResponseInstance.Price.Amount / 100,
@@ -169,23 +172,21 @@ namespace LyftClient.Services
             if (SessionToken is null) { throw new ArgumentNullException(nameof(SessionToken)); }
 
             // RideID used as the cache-instance key
-            var estimateCacheId = request.RideId.ToString();
-            if (estimateCacheId is null) { throw new ArgumentNullException(nameof(estimateCacheId)); }
+            var internalServiceID = request.RideId.ToString();
+            if (internalServiceID is null) { throw new ArgumentNullException(nameof(internalServiceID)); }
 
             // Get the cache-instance for the ride-request
-            var cacheEstimate = await _cache.GetAsync<EstimateCache>(estimateCacheId);
+            var cacheEstimate = await _cache.GetAsync<EstimateCache>(internalServiceID);
             if (cacheEstimate is null) { throw new ArgumentNullException(nameof(cacheEstimate)); }
             var serviceID = cacheEstimate!.ProductId.ToString();
             var requestID = cacheEstimate.RequestId.ToString();
 
             // Retrieve the user-access-token from IdentityService for the current user.
-            _apiClient.Configuration = new APIConfig { AccessToken = await _accessToken.GetAccessTokenAsync(SessionToken!, serviceID) };
+            _apiClient.Configuration = new APIConfig { AccessToken = await _tokenService.GetAccessTokenAsync(SessionToken!, serviceID) };
+            if (_apiClient.Configuration.AccessToken is null) { throw new ArgumentNullException(nameof(_apiClient.Configuration.AccessToken)); }
 
             // CancellationToken instance for the CancelRide request.
-            var cancellationToken = new CancellationRequest
-            {
-                CancelConfirmationToken = Guid.NewGuid().ToString()
-            };
+            var cancellationToken = new CancellationRequest { CancelConfirmationToken = Guid.NewGuid().ToString() };
 
             // Make the Delete request to the MockAPI
             await _apiClient.RidesIdCancelPostAsync(requestID, cancellationToken);
@@ -193,45 +194,6 @@ namespace LyftClient.Services
             // Return the cancellation-fee price breakdown saved in the cache.
             if (cacheEstimate.CancelationCost is null) { throw new ArgumentNullException(nameof(cacheEstimate.CancelationCost)); }
             return cacheEstimate.CancelationCost!;
-        }
-
-        private static Stage StagefromStatus(RideStatusEnum? status)
-        {
-            switch (status)
-            {
-                case RideStatusEnum.Pending: return Stage.Pending;
-                case RideStatusEnum.Arrived: return Stage.Accepted;
-                case RideStatusEnum.PickedUp: return Stage.Accepted;
-                case RideStatusEnum.Accepted: return Stage.Accepted;
-                case RideStatusEnum.Canceled: return Stage.Cancelled;
-                case RideStatusEnum.DroppedOff: return Stage.Completed;
-                default: return Stage.Unknown;
-            }
-        }
-
-        private static RideTypeEnum RideTypeFromServiceID(string serviceID)
-        {
-            ServiceLinker.ServiceIDs.TryGetValue(serviceID.ToUpper(), out string? serviceName);
-            switch (serviceName)
-            {
-                case "lyft": return RideTypeEnum.Lyft;
-                case "lyft_shared": return RideTypeEnum.LyftLine;
-                case "lyft_lux": return RideTypeEnum.LyftPlus;
-                case "lyft_suv": return RideTypeEnum.LyftSuv;
-                default: return RideTypeEnum.Lyft;
-            }
-        }
-
-        public Location ConvertLocationModelToLocation(LocationModel locationModel) // Converts LocationModel to Location
-        {
-            var location = new Location()
-            {
-                Lat = locationModel.Latitude,
-                Lng = locationModel.Longitude,
-                Address = "N/A"
-            };
-
-            return location;
         }
     }
 }
