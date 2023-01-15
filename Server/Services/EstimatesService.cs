@@ -52,14 +52,14 @@ namespace LyftClient.Services
    
                 var estimateResponse = await _apiClient.EstimateAsync(request.StartPoint.Latitude, request.StartPoint.Longitude, serviceName, request.EndPoint.Latitude, request.EndPoint.Longitude);
                 if(estimateResponse is null) { throw new ArgumentNullException(nameof(estimateResponse)); }
-                var estimateResponseId = DataAccess.Services.ServiceID.CreateServiceID(service).ToString();
+                var estimateID = DataAccess.Services.ServiceID.CreateServiceID(service).ToString();
 
                 // Iterate through the list of estimates recieved from the MockAPI
                 foreach(var estimate in estimateResponse.CostEstimates)
                 {
                     var estimateModel = new EstimateModel()
                     {
-                        EstimateId = estimateResponseId,
+                        EstimateId = estimateID,
                         CreatedTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime()),
                         InvalidTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.AddMinutes(5).ToUniversalTime()),
                         Distance = (int)estimate.EstimatedDistanceMiles,
@@ -82,7 +82,7 @@ namespace LyftClient.Services
                         ProductId = Guid.Parse(service) // ServiceID 
                     };
 
-                    await _cache.SetAsync(estimateResponseId, estimateCache, options);
+                    await _cache.SetAsync(estimateID, estimateCache, options);
                     await responseStream.WriteAsync(estimateModel);
                     await Task.Delay(TimeSpan.FromSeconds(1));
                 }
@@ -100,7 +100,7 @@ namespace LyftClient.Services
             if(estimateCache is null) { throw new ArgumentNullException(nameof(estimateCache)); }
 
             var estimateInstance = estimateCache!.GetEstimatesRequest;  // Estimate Instance
-            var estimateResponseId = request.EstimateId.ToString(); // EstimateInstance Generated Service ID
+            var estimateID = request.EstimateId.ToString(); // EstimateInstance Generated Service ID
             var serviceID = estimateCache.ProductId.ToString(); // RideType Service ID
 
             ServiceLinker.ServiceIDs.TryGetValue(serviceID.ToUpper(), out string? serviceName);
@@ -115,7 +115,7 @@ namespace LyftClient.Services
             // Create an EstimateModel to be sent back to the EstimatesAPI
             var estimateModel = new EstimateModel()
             {
-                EstimateId = estimateResponseId,
+                EstimateId = estimateID,
                 CreatedTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.ToUniversalTime()),
                 InvalidTime = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.Now.AddMinutes(5).ToUniversalTime()),
                 Distance = (int)estimateResponse.CostEstimates[0].EstimatedDistanceMiles,
@@ -138,7 +138,7 @@ namespace LyftClient.Services
                 ProductId = Guid.Parse(serviceID)
             };
 
-            await _cache.SetAsync(estimateResponseId, cacheInstance, options);
+            await _cache.SetAsync(estimateID, cacheInstance, options);
             return estimateModel;
         }
     }
