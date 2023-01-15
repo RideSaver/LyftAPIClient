@@ -121,7 +121,7 @@ namespace LyftClient.Services
                 Distance = (int)estimateResponse.CostEstimates[0].EstimatedDistanceMiles,
                 Seats = estimateInstance.Seats,
                 DisplayName = estimateResponse.CostEstimates[0].DisplayName,
-                WayPoints = { { estimateInstance.StartPoint }, { estimateInstance.EndPoint }, }
+                WayPoints = { { estimateInstance.StartPoint }, { estimateInstance.EndPoint }, },
                 RequestUrl = $"https://lyft.mock/client_id={clientId}&action=setPickup&pickup[latitude]={estimateInstance.StartPoint.Latitude}&pickup[longitude]={estimateInstance.StartPoint.Longitude}&dropoff[latitude]={estimateInstance.EndPoint.Latitude}&dropoff[longitude]={estimateInstance.EndPoint.Longitude}&product_id={estimateResponseId}",
                 PriceDetails = new CurrencyModel
                 {
